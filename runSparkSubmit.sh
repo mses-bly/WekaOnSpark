@@ -1,0 +1,1 @@
+/home/moises/Moises/Installs/spark-1.2.1-bin-hadoop2.4/bin/spark-submit --class com.integration.weka.spark.utils.Launcher --driver-java-options "-Dsun.io.serialization.extendedDebugInfo=true" ./target/integration-weka-spark-0.0.1-SNAPSHOT.jar ./target/output 

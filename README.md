@@ -1,2 +1,2 @@
 # WekaOnSpark
-Weka and Spark integration in Java.
+Weka integration with Spark in Java.

@@ -1,20 +1,26 @@
 package com.integration.weka.spark.classifiers;
 
+import java.util.ArrayList;
+
 import org.apache.spark.api.java.function.Function2;
 
 import weka.classifiers.Classifier;
 import weka.distributed.WekaClassifierReduceTask;
 
-import java.util.ArrayList;
-
-public class ClassifierReduceFunction implements Function2<Classifier, Classifier, Classifier>{
+/**
+ * Classification Reduce Function.
+ * 
+ * @author Moises
+ *
+ */
+public class ClassifierReduceFunction implements Function2<Classifier, Classifier, Classifier> {
 
 	private WekaClassifierReduceTask classifierReduceTask;
-	
-	public ClassifierReduceFunction(){
+
+	public ClassifierReduceFunction() {
 		classifierReduceTask = new WekaClassifierReduceTask();
-		
 	}
+
 	public Classifier call(Classifier arg0, Classifier arg1) throws Exception {
 		ArrayList<Classifier> classifiers = new ArrayList<Classifier>();
 		classifiers.add(arg0);

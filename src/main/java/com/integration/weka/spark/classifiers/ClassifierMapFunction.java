@@ -5,6 +5,7 @@ import java.util.List;
 import org.apache.log4j.Logger;
 import org.apache.spark.api.java.function.Function;
 
+import weka.classifiers.Classifier;
 import weka.classifiers.functions.SimpleLogistic;
 import weka.core.Instance;
 import weka.core.Instances;
@@ -13,57 +14,81 @@ import weka.distributed.CSVToARFFHeaderReduceTask;
 import weka.distributed.DistributedWekaException;
 import weka.distributed.WekaClassifierMapTask;
 
-public class ClassifierMapFunction implements Function<List<String>, SimpleLogistic> {
+/**
+ * Classification Map Function. Build and train classifier.
+ * 
+ * @author Moises
+ *
+ */
+public class ClassifierMapFunction implements Function<List<String>, Classifier> {
 
 	private static Logger LOGGER = Logger.getLogger(ClassifierMapFunction.class);
+
 	private WekaClassifierMapTask classifierMapTask;
 	private Instances strippedHeader;
 	private List<String> attibutesNames;
 
 	/**
+	 * Creates instance of ClassifierMapFunction for classification training
 	 * 
 	 * @param trainingHeader
-	 *            previously generated header.
-	 * @throws DistributedWekaException
-	 * 
+	 *            previously calculated header
 	 */
-	public ClassifierMapFunction(Instances trainingHeader) throws DistributedWekaException {
+	public ClassifierMapFunction(Instances trainingHeader) {
 		// Strip summary from header
-		strippedHeader = CSVToARFFHeaderReduceTask.stripSummaryAtts(trainingHeader);
+		try {
+			strippedHeader = CSVToARFFHeaderReduceTask.stripSummaryAtts(trainingHeader);
 
-		// Add the classifier class index
-		strippedHeader.setClassIndex(trainingHeader.classIndex());
+			// Add the classifier class index
+			strippedHeader.setClassIndex(trainingHeader.classIndex());
 
-		// Extract dataset attributes names
-		attibutesNames = CSVToARFFHeaderMapTask.instanceHeaderToAttributeNameList(strippedHeader);
+			// Extract dataset attributes names
+			attibutesNames = CSVToARFFHeaderMapTask.instanceHeaderToAttributeNameList(strippedHeader);
 
-		// Setup the type of classifier
-		classifierMapTask = new WekaClassifierMapTask();
-		classifierMapTask.setClassifier(new SimpleLogistic());
+			// Setup the type of classifier
+			classifierMapTask = new WekaClassifierMapTask();
+			classifierMapTask.setClassifier(new SimpleLogistic());
 
-		// Set our classifier with the stripped header
-		classifierMapTask.setup(strippedHeader);
+			// Set our classifier with the stripped header
+			classifierMapTask.setup(strippedHeader);
+
+		} catch (DistributedWekaException e) {
+			LOGGER.error("Could not instantiate ClassifierMapFunction. Error: [" + e + "]");
+		}
 
 	}
 
-	public SimpleLogistic call(List<String> arg0) throws Exception {
-		// This is done here because of a non serializable class that weka
+	/**
+	 * Call method for this map function
+	 */
+	public Classifier call(List<String> arg0) {
+		// This is done here because of a non serializable class that Weka
 		// distributed package uses
 		// - field (class "weka.distributed.CSVToARFFHeaderMapTask", name:
 		// "m_parser", type: "class au.com.bytecode.opencsv.CSVParser")
 		CSVToARFFHeaderMapTask rowParser = new CSVToARFFHeaderMapTask();
 		rowParser.initParserOnly(attibutesNames);
 
-		for (String str : arg0) {
-			// Parse the row of data
-			String[] parsedRow = rowParser.parseRowOnly(str);
-			// Make an instance row
-			Instance currentInstance = rowParser.makeInstance(strippedHeader, true, parsedRow);
-			// Add this row of data to the classifier
-			classifierMapTask.processInstance(currentInstance);
+		try {
+			for (String str : arg0) {
+				// Parse the row of data
+				String[] parsedRow;
+				parsedRow = rowParser.parseRowOnly(str);
+
+				// Make an instance row
+				Instance currentInstance = rowParser.makeInstance(strippedHeader, true, parsedRow);
+
+				// Add this row of data to the classifier
+				classifierMapTask.processInstance(currentInstance);
+			}
+
+			classifierMapTask.finalizeTask();
+			return classifierMapTask.getClassifier();
+
+		} catch (Exception e) {
+			LOGGER.error("Could not train classifier. Error: [" + e + "]");
 		}
-		classifierMapTask.finalizeTask();
-		return (SimpleLogistic) classifierMapTask.getClassifier();
+		return null;
 	}
 
 }

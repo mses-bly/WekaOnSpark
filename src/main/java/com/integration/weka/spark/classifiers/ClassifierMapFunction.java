@@ -12,7 +12,6 @@ import weka.distributed.CSVToARFFHeaderMapTask;
 import weka.distributed.CSVToARFFHeaderReduceTask;
 import weka.distributed.DistributedWekaException;
 import weka.distributed.WekaClassifierMapTask;
-import weka.classifiers.bayes.*;
 
 /**
  * Classification Map Function. Build and train classifier.

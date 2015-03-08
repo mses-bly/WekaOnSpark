@@ -1,5 +1,7 @@
-/target/
-/.classpath
-/dependency-reduced-pom.xml
-/.settings/*
-/.project
+target/
+output-*.model
+.classpath
+dependency-reduced-pom.xml
+.settings/*
+.project/
+spark-*-bin-hadoop*/

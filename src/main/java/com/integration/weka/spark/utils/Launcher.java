@@ -7,6 +7,7 @@ import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaSparkContext;
 
 import com.integration.weka.spark.jobs.ClassifierSparkJob;
+import com.integration.weka.spark.jobs.ScoringSparkJob;
 
 /**
  * Application entry point.
@@ -25,28 +26,26 @@ public class Launcher {
 
 		if (args.length == 0) {
 			LOGGER.error("Please provide some arguments");
-			return;
+		} else {
+			String job = args[0];
+			if (job.equals("CLASSIFY")) {
+				// Lets assume for the time being everything is alright on input
+				String classifierName = args[1];
+				String trainingData = args[2];
+				String attributesFile = args[3];
+				String outputFile = "output_" + classifierName + "_" + String.valueOf(new Date().getTime()) + ".model";
+				ClassifierSparkJob.buildClassifier(conf, context, classifierName, trainingData, attributesFile, outputFile);
+			} else {
+				if (job.equals("SCORE")) {
+					String modelFile = args[1];
+					String predictionData = args[2];
+					String attributesFile = args[3];
+					String outputFolder = "output_prediction_" + String.valueOf(new Date().getTime());
+					ScoringSparkJob.scoreDataSet(conf, context, modelFile, predictionData, attributesFile, outputFolder);
+				} else {
+					LOGGER.error("Unknown JOB. Option are CLASSIFY or SCORE");
+				}
+			}
 		}
-		String classifierName = args[0];
-		if (classifierName == null) {
-			LOGGER.error("Classifier name not provided");
-			return;
-		}
-
-		String inputFile = args[1];
-		if (inputFile == null) {
-			LOGGER.error("Please provide an input CSV file");
-			return;
-		}
-
-		String attributesFile = args[2];
-		if (attributesFile == null) {
-			LOGGER.error("Please provide an attributes CSV file");
-			return;
-		}
-
-		String outputFile = "output_" + classifierName + "_" + String.valueOf(new Date().getTime()) + ".model";
-
-		ClassifierSparkJob.buildClassifier(conf, context, classifierName, inputFile, attributesFile, outputFile);
 	}
 }

@@ -19,14 +19,13 @@ import weka.distributed.WekaClassifierMapTask;
  * @author Moises
  *
  */
-@SuppressWarnings("unused")
 public class ClassifierMapFunction implements Function<List<String>, Classifier> {
 
 	private static Logger LOGGER = Logger.getLogger(ClassifierMapFunction.class);
 
 	private WekaClassifierMapTask classifierMapTask;
 	private Instances strippedHeader;
-	private List<String> attibutesNames;
+	private List<String> attributesNames;
 
 	/**
 	 * Creates instance of ClassifierMapFunction for classification training
@@ -43,7 +42,7 @@ public class ClassifierMapFunction implements Function<List<String>, Classifier>
 			strippedHeader.setClassIndex(trainingHeader.classIndex());
 
 			// Extract dataset attributes names
-			attibutesNames = CSVToARFFHeaderMapTask.instanceHeaderToAttributeNameList(strippedHeader);
+			attributesNames = CSVToARFFHeaderMapTask.instanceHeaderToAttributeNameList(strippedHeader);
 
 			// Setup the type of classifier
 			classifierMapTask = new WekaClassifierMapTask();
@@ -73,13 +72,12 @@ public class ClassifierMapFunction implements Function<List<String>, Classifier>
 		// - field (class "weka.distributed.CSVToARFFHeaderMapTask", name:
 		// "m_parser", type: "class au.com.bytecode.opencsv.CSVParser")
 		CSVToARFFHeaderMapTask rowParser = new CSVToARFFHeaderMapTask();
-		rowParser.initParserOnly(attibutesNames);
+		rowParser.initParserOnly(attributesNames);
 
 		try {
 			for (String str : arg0) {
 				// Parse the row of data
-				String[] parsedRow;
-				parsedRow = rowParser.parseRowOnly(str);
+				String[] parsedRow = rowParser.parseRowOnly(str);
 
 				// Make an instance row
 				Instance currentInstance = rowParser.makeInstance(strippedHeader, true, parsedRow);

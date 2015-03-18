@@ -17,14 +17,27 @@ LAUNCHER_CLASS=com.integration.weka.spark.utils.Launcher
 WEKA_JAR_PATH=${SELFD}/target
 CLASSIFIER=weka.classifiers.bayes.NaiveBayes
 INPUT_FILES_PATH=${SELFD}/testing_files
+# JOB=CLASSIFY
+JOB=SCORE
 
 mvn package
 
-#Execution 1
+#Execution CLASSIFY
+# ${SPARK_HOME}/spark-submit \
+# 	--class ${LAUNCHER_CLASS} \
+# 	${OPTIONS} \
+# 	${WEKA_JAR_PATH}/integration-weka-spark-0.0.1-SNAPSHOT.jar \
+# 	${JOB} \
+# 	${CLASSIFIER} \
+# 	${INPUT_FILES_PATH}/diabetes_train.csv \
+# 	${INPUT_FILES_PATH}/diabetes_attr.csv
+
+#Execution SCORE
 ${SPARK_HOME}/spark-submit \
 	--class ${LAUNCHER_CLASS} \
 	${OPTIONS} \
 	${WEKA_JAR_PATH}/integration-weka-spark-0.0.1-SNAPSHOT.jar \
-	${CLASSIFIER} \
-	${INPUT_FILES_PATH}/diabetes.csv \
+	${JOB} \
+	${INPUT_FILES_PATH}/output_weka.classifiers.bayes.NaiveBayes_1426635940080.model \
+	${INPUT_FILES_PATH}/diabetes_test.csv \
 	${INPUT_FILES_PATH}/diabetes_attr.csv

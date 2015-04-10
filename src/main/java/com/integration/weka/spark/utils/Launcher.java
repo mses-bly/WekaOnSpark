@@ -7,6 +7,7 @@ import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaSparkContext;
 
 import com.integration.weka.spark.jobs.ClassifierSparkJob;
+import com.integration.weka.spark.jobs.CrossValidationSparkJob;
 import com.integration.weka.spark.jobs.ScoringSparkJob;
 
 /**
@@ -43,7 +44,14 @@ public class Launcher {
 					String outputFolder = "output_prediction_" + String.valueOf(new Date().getTime());
 					ScoringSparkJob.scoreDataSet(conf, context, modelFile, predictionData, attributesFile, outputFolder);
 				} else {
-					LOGGER.error("Unknown JOB. Option are CLASSIFY or SCORE");
+					if (job.equals("CROSSVALIDATION")) {
+						String trainingData = args[1];
+						int numberOfFolds = Integer.valueOf(args[2]);
+						String outputFolder = "output_cross_validation_" + String.valueOf(new Date().getTime());
+						CrossValidationSparkJob.performCrossValidation(conf, context, trainingData, numberOfFolds, outputFolder);
+					} else {
+						LOGGER.error("Unknown JOB. Option are CLASSIFY or SCORE");
+					}
 				}
 			}
 		}

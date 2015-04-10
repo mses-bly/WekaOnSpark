@@ -17,8 +17,10 @@ LAUNCHER_CLASS=com.integration.weka.spark.utils.Launcher
 WEKA_JAR_PATH=${SELFD}/target
 CLASSIFIER=weka.classifiers.bayes.NaiveBayes
 INPUT_FILES_PATH=${SELFD}/testing_files
-# JOB=CLASSIFY
-JOB=SCORE
+#JOB=CLASSIFY
+#JOB=SCORE
+JOB=CROSSVALIDATION
+
 
 mvn package
 
@@ -33,11 +35,24 @@ mvn package
 # 	${INPUT_FILES_PATH}/diabetes_attr.csv
 
 #Execution SCORE
+# ${SPARK_HOME}/spark-submit \
+# 	--class ${LAUNCHER_CLASS} \
+# 	${OPTIONS} \
+# 	${WEKA_JAR_PATH}/integration-weka-spark-0.0.1-SNAPSHOT.jar \
+# 	${JOB} \
+# 	${INPUT_FILES_PATH}/output_weka.classifiers.bayes.NaiveBayes_1426635940080.model \
+# 	${INPUT_FILES_PATH}/diabetes_test.csv \
+# 	${INPUT_FILES_PATH}/diabetes_attr.csv
+
+#Execution CROSSVALIDATION
+if [ ${JOB} = "CROSSVALIDATION" ]; then
+	awk '{printf("%d %s\n", NR - 1 , $0)}' ${INPUT_FILES_PATH}/test_split.txt > ${INPUT_FILES_PATH}/test_split_with_ln.txt
+fi
+
 ${SPARK_HOME}/spark-submit \
 	--class ${LAUNCHER_CLASS} \
 	${OPTIONS} \
 	${WEKA_JAR_PATH}/integration-weka-spark-0.0.1-SNAPSHOT.jar \
 	${JOB} \
-	${INPUT_FILES_PATH}/output_weka.classifiers.bayes.NaiveBayes_1426635940080.model \
-	${INPUT_FILES_PATH}/diabetes_test.csv \
-	${INPUT_FILES_PATH}/diabetes_attr.csv
+	${INPUT_FILES_PATH}/test_split_with_ln.txt \
+	10

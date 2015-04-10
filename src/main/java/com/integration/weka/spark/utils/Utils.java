@@ -6,8 +6,10 @@ import java.io.IOException;
 import java.io.StringReader;
 
 import org.apache.log4j.Logger;
+import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.function.Function;
 
+import scala.Tuple2;
 import weka.classifiers.Classifier;
 import weka.core.SerializationHelper;
 import au.com.bytecode.opencsv.CSVReader;
@@ -28,12 +30,47 @@ public class Utils {
 		}
 	}
 
+	/**
+	 * Spark function for filtering all RDDs Pairs whose key falls in a given
+	 * range. Inclusive range [rangeStart, rangeEnds]
+	 */
+	private static class RangeFilter implements Function<Tuple2<Long, String>, Boolean> {
+
+		private long rangeStart;
+		private long rangeEnd;
+
+		public RangeFilter(long rangeStart, long rangeEnd) throws Exception {
+			if (rangeStart > rangeEnd) {
+				throw new Exception("Range start must be less or equal than end");
+			}
+			this.rangeStart = rangeStart;
+			this.rangeEnd = rangeEnd;
+		}
+
+		public Boolean call(Tuple2<Long, String> v1) throws Exception {
+			if (v1._1() >= rangeStart && v1._1() <= rangeEnd) {
+				return true;
+			}
+			return false;
+		}
+	}
+
 	/***********************************************
 	 * Static Accessors *
 	 ***********************************************/
 
 	public static ParseLine getParseLineFunction() {
 		return new ParseLine();
+	}
+
+	public static RangeFilter getRangeFilter(long start, long end) {
+		try {
+			RangeFilter rangeFilter = new RangeFilter(start, end);
+			return rangeFilter;
+		} catch (Exception e) {
+			LOGGER.error(e);
+		}
+		return null;
 	}
 
 	/***********************************************
@@ -122,5 +159,9 @@ public class Utils {
 		}
 		str += "]";
 		return str;
+	}
+
+	public static <T> JavaRDD<T>[] splitRDD(double[] weights, JavaRDD<T> data) {
+		return data.randomSplit(weights);
 	}
 }

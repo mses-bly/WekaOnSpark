@@ -9,9 +9,13 @@ import org.apache.log4j.Logger;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.function.Function;
 
-import scala.Tuple2;
 import weka.classifiers.Classifier;
+import weka.core.Instance;
+import weka.core.Instances;
 import weka.core.SerializationHelper;
+import weka.distributed.CSVToARFFHeaderMapTask;
+import weka.distributed.CSVToARFFHeaderReduceTask;
+import weka.distributed.DistributedWekaException;
 import au.com.bytecode.opencsv.CSVReader;
 
 public class Utils {
@@ -30,30 +34,27 @@ public class Utils {
 		}
 	}
 
-	/**
-	 * Spark function for filtering all RDDs Pairs whose key falls in a given
-	 * range. Inclusive range [rangeStart, rangeEnds]
-	 */
-	private static class RangeFilter implements Function<Tuple2<Long, String>, Boolean> {
+	private static class InstanceFromLineBuilder implements Function<String, Instance> {
+		private Instances strippedHeader;
 
-		private long rangeStart;
-		private long rangeEnd;
-
-		public RangeFilter(long rangeStart, long rangeEnd) throws Exception {
-			if (rangeStart > rangeEnd) {
-				throw new Exception("Range start must be less or equal than end");
-			}
-			this.rangeStart = rangeStart;
-			this.rangeEnd = rangeEnd;
+		public InstanceFromLineBuilder(Instances fullDataHeader) throws DistributedWekaException {
+			strippedHeader = CSVToARFFHeaderReduceTask.stripSummaryAtts(fullDataHeader);
+			// Add the classifier class index
+			strippedHeader.setClassIndex(fullDataHeader.classIndex());
 		}
 
-		public Boolean call(Tuple2<Long, String> v1) throws Exception {
-			if (v1._1() >= rangeStart && v1._1() <= rangeEnd) {
-				return true;
-			}
-			return false;
+		public Instance call(String v1) throws Exception {
+			CSVToARFFHeaderMapTask rowParser = new CSVToARFFHeaderMapTask();
+			rowParser.initParserOnly(CSVToARFFHeaderMapTask.instanceHeaderToAttributeNameList(strippedHeader));
+			// Parse the row of data
+			String[] parsedRow = rowParser.parseRowOnly(v1);
+			// Make an instance
+			Instance instance = rowParser.makeInstance(strippedHeader, true, parsedRow);
+			return instance;
 		}
+
 	}
+
 
 	/***********************************************
 	 * Static Accessors *
@@ -63,15 +64,15 @@ public class Utils {
 		return new ParseLine();
 	}
 
-	public static RangeFilter getRangeFilter(long start, long end) {
+	public static InstanceFromLineBuilder getInstanceFromLineBuilder(Instances fullDataHeader) {
 		try {
-			RangeFilter rangeFilter = new RangeFilter(start, end);
-			return rangeFilter;
-		} catch (Exception e) {
-			LOGGER.error(e);
+		return new InstanceFromLineBuilder(fullDataHeader);
+		} catch (Exception ex) {
+			LOGGER.error("Could not obtain Instance Builder. Error: [" + ex + "]");
 		}
 		return null;
 	}
+
 
 	/***********************************************
 	 * Various utility functions *
@@ -136,19 +137,6 @@ public class Utils {
 		return null;
 	}
 
-	/**
-	 * Removes the class attribute from an array of attributes. Assume class
-	 * attribute is at the end.
-	 * 
-	 * @param attributes
-	 * @return attributes without the class attribute at the end
-	 */
-	public static String[] removeClassAttribute(String[] attributes) {
-		String[] noClass = new String[attributes.length - 1];
-		System.arraycopy(attributes, 0, noClass, 0, attributes.length - 1);
-		return noClass;
-	}
-
 	public static String doubleArrayToString(double[] arr) {
 		String str = "[";
 		if (arr != null && arr.length > 0) {
@@ -164,4 +152,5 @@ public class Utils {
 	public static <T> JavaRDD<T>[] splitRDD(double[] weights, JavaRDD<T> data) {
 		return data.randomSplit(weights);
 	}
+
 }

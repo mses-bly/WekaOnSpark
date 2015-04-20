@@ -1,6 +1,5 @@
 package com.integration.weka.spark.jobs;
 
-import java.util.Arrays;
 import java.util.List;
 
 import org.apache.log4j.Logger;
@@ -30,26 +29,27 @@ public class ClassifierSparkJob {
 	/**
 	 * 
 	 * @param conf
-	 *            Spark configuration
+	 *            : Spark configuration
 	 * @param context
-	 *            Spark context
+	 *            : Spark context
+	 * @param classifierName
+	 *            : Classifier full qualified name
 	 * @param inputFile
-	 *            CSV Training set (without headers)
-	 * @param attributesNamesFile
-	 *            Attributes names
+	 *            : Path to input data.
 	 * @param outputFile
-	 *            File to write the trained model
+	 *            : Output folder for model.
 	 */
-	public static void buildClassifier(SparkConf conf, JavaSparkContext context, String classifierName, String inputFile, String attributesNamesFile, String outputFile) {
+	public static void buildClassifier(SparkConf conf, JavaSparkContext context, String classifierName, String inputFile, String outputFile) {
 		LOGGER.info("Training classifier with dataset [" + inputFile + "]");
 		// Load the data file
 		JavaRDD<String> csvFile = context.textFile(inputFile);
-		// Load the attributes file
-		JavaRDD<String[]> attributes = context.textFile(attributesNamesFile).map(Utils.getParseLineFunction());
+
 		// Group input data by partition rather than by lines
 		JavaRDD<List<String>> data = csvFile.glom();
+
 		// Build Weka Header
-		Instances header = data.map(new CSVHeaderMapFunction(Arrays.asList(attributes.first()))).reduce(new CSVHeaderReduceFunction());
+		Instances header = data.map(new CSVHeaderMapFunction(Utils.parseCSVLine(csvFile.first()).length)).reduce(new CSVHeaderReduceFunction());
+
 		// Train classifier
 		Classifier classifier = data.map(new ClassifierMapFunction(header, classifierName)).reduce(new ClassifierReduceFunction());
 		try {

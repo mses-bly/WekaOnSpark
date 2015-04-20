@@ -1,7 +1,8 @@
 package com.integration.weka.spark.jobs;
 
-import java.util.Arrays;
+import java.io.PrintWriter;
 
+import org.apache.log4j.Logger;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
@@ -9,6 +10,7 @@ import org.apache.spark.api.java.JavaSparkContext;
 import weka.core.Instances;
 
 import com.integration.weka.spark.headers.CSVHeaderMapFunction;
+import com.integration.weka.spark.headers.CSVHeaderReduceFunction;
 import com.integration.weka.spark.utils.Utils;
 
 /**
@@ -18,26 +20,32 @@ import com.integration.weka.spark.utils.Utils;
  *
  */
 public class CSVHeaderSparkJob {
+	private static Logger LOGGER = Logger.getLogger(CSVHeaderSparkJob.class);
 	/**
 	 * 
 	 * @param conf
-	 *            Spark configuration
+	 *            : Spark configuration
 	 * @param context
-	 *            Spark context
+	 *            : Spark context
 	 * @param inputFile
-	 *            CSV Training set (without headers)
-	 * @param attributesNamesFile
-	 *            Attributes names
+	 *            : Path to input data
 	 * @param outputFile
-	 *            File to write the trained model
+	 *            : file for reduced results
 	 */
-	public static void loadCVSFile(SparkConf conf, JavaSparkContext context, String inputFile, String attributesNamesFile, String outputFile) {
+	public static void loadCVSFile(SparkConf conf, JavaSparkContext context, String inputFile, String outputFile) {
 		JavaRDD<String> csvFile = context.textFile(inputFile);
-		JavaRDD<String[]> attributes = context.textFile(attributesNamesFile).map(Utils.getParseLineFunction());
-		JavaRDD<Instances> instances = csvFile.glom().map(new CSVHeaderMapFunction(Arrays.asList(attributes.first())));
-		// Instances inst = instances.reduce(new CSVHeaderReduceFunction());
-		// System.out.println(inst);
-		instances.saveAsTextFile(outputFile);
+		Instances header = csvFile.glom().map(new CSVHeaderMapFunction(Utils.parseCSVLine(csvFile.first()).length)).reduce(new CSVHeaderReduceFunction());
+		PrintWriter writer = null;
+		try {
+			writer = new PrintWriter(outputFile, "UTF-8");
+			writer.println(header);
+		} catch (Exception ex) {
+			LOGGER.error("Could not write header to file " + outputFile + ". Error: [" + ex + "]");
+		} finally {
+			if (writer != null) {
+				writer.close();
+			}
+		}
 	}
 
 }

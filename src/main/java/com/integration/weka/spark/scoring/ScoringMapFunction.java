@@ -11,9 +11,7 @@ import weka.core.Instances;
 import weka.distributed.DistributedWekaException;
 import weka.distributed.WekaScoringMapTask;
 
-import com.integration.weka.spark.utils.Utils;
-
-public class ScoringMapFunction implements Function<List<Instance>, List<String>> {
+public class ScoringMapFunction implements Function<List<Instance>, List<double[]>> {
 
 	private static Logger LOGGER = Logger.getLogger(ScoringMapFunction.class);
 
@@ -29,13 +27,11 @@ public class ScoringMapFunction implements Function<List<Instance>, List<String>
 
 	}
 
-	public List<String> call(List<Instance> v1) throws Exception {
-		ArrayList<String> predictions = new ArrayList<String>();
+	public List<double[]> call(List<Instance> v1) throws Exception {
+		ArrayList<double[]> predictions = new ArrayList<double[]>();
 		for (Instance instance : v1) {
-			String prediction = instance.toString() + ", ";
 			double[] preds = wekaScoringMapTask.processInstance(instance);
-			prediction += Utils.doubleArrayToString(preds) + "\n";
-			predictions.add(prediction);
+			predictions.add(preds);
 		}
 		return predictions;
 	}

@@ -15,44 +15,59 @@ SELFZ=${SELFD}/${SELF}
 SPARK_HOME=${SELFD}/spark-1.2.1-bin-hadoop2.4/bin
 LAUNCHER_CLASS=com.integration.weka.spark.utils.Launcher
 WEKA_JAR_PATH=${SELFD}/target
-CLASSIFIER=weka.classifiers.bayes.NaiveBayes
+CLASSIFIER=weka.classifiers.trees.RandomForest
 INPUT_FILES_PATH=${SELFD}/testing_files
-#JOB=CLASSIFY
-#JOB=SCORE
-JOB=CROSSVALIDATION
+# JOB=HEADER
+# JOB=CLASSIFY
+# JOB=SCORE
+JOB=EVALUATION
 
 
 mvn package
 
-#Execution CLASSIFY
-# ${SPARK_HOME}/spark-submit \
-# 	--class ${LAUNCHER_CLASS} \
-# 	${OPTIONS} \
-# 	${WEKA_JAR_PATH}/integration-weka-spark-0.0.1-SNAPSHOT.jar \
-# 	${JOB} \
-# 	${CLASSIFIER} \
-# 	${INPUT_FILES_PATH}/diabetes_train.csv \
-# 	${INPUT_FILES_PATH}/diabetes_attr.csv
+case ${JOB} in
+	
+	HEADER )
+		${SPARK_HOME}/spark-submit \
+		--class ${LAUNCHER_CLASS} \
+		${OPTIONS} \
+		${WEKA_JAR_PATH}/integration-weka-spark-0.0.1-SNAPSHOT.jar \
+		${JOB} \
+		${INPUT_FILES_PATH}/diabetes.csv
+	;;
 
-#Execution SCORE
-# ${SPARK_HOME}/spark-submit \
-# 	--class ${LAUNCHER_CLASS} \
-# 	${OPTIONS} \
-# 	${WEKA_JAR_PATH}/integration-weka-spark-0.0.1-SNAPSHOT.jar \
-# 	${JOB} \
-# 	${INPUT_FILES_PATH}/output_weka.classifiers.bayes.NaiveBayes_1426635940080.model \
-# 	${INPUT_FILES_PATH}/diabetes_test.csv \
-# 	${INPUT_FILES_PATH}/diabetes_attr.csv
+	CLASSIFY )
+		${SPARK_HOME}/spark-submit \
+		--class ${LAUNCHER_CLASS} \
+		${OPTIONS} \
+		${WEKA_JAR_PATH}/integration-weka-spark-0.0.1-SNAPSHOT.jar \
+		${JOB} \
+		${CLASSIFIER} \
+		${INPUT_FILES_PATH}/datapolytest_reduced.csv
+	;;
 
-#Execution CROSSVALIDATION
-if [ ${JOB} = "CROSSVALIDATION" ]; then
-	awk '{printf("%d %s\n", NR - 1 , $0)}' ${INPUT_FILES_PATH}/test_split.txt > ${INPUT_FILES_PATH}/test_split_with_ln.txt
-fi
+	SCORE )
+		${SPARK_HOME}/spark-submit \
+		--class ${LAUNCHER_CLASS} \
+		${OPTIONS} \
+		${WEKA_JAR_PATH}/integration-weka-spark-0.0.1-SNAPSHOT.jar \
+		${JOB} \
+		${INPUT_FILES_PATH}/polytest/output_model_weka.classifiers.trees.RandomForest_20151126031114.model \
+		${INPUT_FILES_PATH}/datapolytest_reduced_test.csv \
+		${INPUT_FILES_PATH}/datapolytest_reduced.csv
+	;;
 
-${SPARK_HOME}/spark-submit \
-	--class ${LAUNCHER_CLASS} \
-	${OPTIONS} \
-	${WEKA_JAR_PATH}/integration-weka-spark-0.0.1-SNAPSHOT.jar \
-	${JOB} \
-	${INPUT_FILES_PATH}/test_split_with_ln.txt \
-	10
+	EVALUATION )
+		${SPARK_HOME}/spark-submit \
+		--class ${LAUNCHER_CLASS} \
+		${OPTIONS} \
+		${WEKA_JAR_PATH}/integration-weka-spark-0.0.1-SNAPSHOT.jar \
+		${JOB} \
+		2 \
+		weka.classifiers.trees.RandomForest \
+		weka.classifiers.functions.Logistic \
+		${INPUT_FILES_PATH}/diabetes.csv \
+		${INPUT_FILES_PATH}/diabetes.csv
+	;;
+
+esac

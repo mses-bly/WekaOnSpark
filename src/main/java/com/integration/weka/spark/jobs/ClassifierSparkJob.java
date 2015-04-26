@@ -48,7 +48,7 @@ public class ClassifierSparkJob {
 		JavaRDD<List<String>> data = csvFile.glom();
 
 		// Build Weka Header
-		Instances header = data.map(new CSVHeaderMapFunction(Utils.parseCSVLine(csvFile.first()).length)).reduce(new CSVHeaderReduceFunction());
+		Instances header = data.map(new CSVHeaderMapFunction(Utils.parseCSVLine(csvFile.first()).length, true)).reduce(new CSVHeaderReduceFunction());
 
 		// Train classifier
 		Classifier classifier = data.map(new ClassifierMapFunction(header, classifierFullName)).reduce(new ClassifierReduceFunction());

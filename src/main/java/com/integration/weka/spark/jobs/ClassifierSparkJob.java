@@ -9,6 +9,7 @@ import org.apache.spark.api.java.JavaSparkContext;
 
 import weka.classifiers.Classifier;
 import weka.core.Instances;
+import weka.core.SerializationHelper;
 
 import com.integration.weka.spark.classifiers.ClassifierMapFunction;
 import com.integration.weka.spark.classifiers.ClassifierReduceFunction;
@@ -39,10 +40,9 @@ public class ClassifierSparkJob {
 	 * @param outputFile
 	 *            : Output folder for model.
 	 */
-	public static void buildClassifier(SparkConf conf, JavaSparkContext context, String classifierName, String inputFile, String outputFile) {
-		LOGGER.info("Training classifier with dataset [" + inputFile + "]");
+	public static void buildClassifier(SparkConf conf, JavaSparkContext context, String classifierFullName, String inputFilePath, String outputFilePath) {
 		// Load the data file
-		JavaRDD<String> csvFile = context.textFile(inputFile);
+		JavaRDD<String> csvFile = context.textFile(inputFilePath);
 
 		// Group input data by partition rather than by lines
 		JavaRDD<List<String>> data = csvFile.glom();
@@ -51,10 +51,10 @@ public class ClassifierSparkJob {
 		Instances header = data.map(new CSVHeaderMapFunction(Utils.parseCSVLine(csvFile.first()).length)).reduce(new CSVHeaderReduceFunction());
 
 		// Train classifier
-		Classifier classifier = data.map(new ClassifierMapFunction(header, classifierName)).reduce(new ClassifierReduceFunction());
+		Classifier classifier = data.map(new ClassifierMapFunction(header, classifierFullName)).reduce(new ClassifierReduceFunction());
 		try {
-			Utils.writeModelToDisk(outputFile, classifier);
-			LOGGER.info("Classifier [" + classifier.getClass().getName() + "] model saved at [" + outputFile + "]");
+			SerializationHelper.write(outputFilePath, classifier);
+			LOGGER.info("Classifier [" + classifier.getClass().getName() + "] model saved at [" + outputFilePath + "]");
 		} catch (Exception e) {
 			LOGGER.error("Could not write model to disk. Error: [" + e + "]");
 		}

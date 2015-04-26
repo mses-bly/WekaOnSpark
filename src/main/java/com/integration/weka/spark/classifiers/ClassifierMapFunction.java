@@ -10,7 +10,6 @@ import weka.core.Instance;
 import weka.core.Instances;
 import weka.distributed.CSVToARFFHeaderMapTask;
 import weka.distributed.CSVToARFFHeaderReduceTask;
-import weka.distributed.DistributedWekaException;
 import weka.distributed.WekaClassifierMapTask;
 
 /**
@@ -54,11 +53,8 @@ public class ClassifierMapFunction implements Function<List<String>, Classifier>
 
 			// Set our classifier with the stripped header
 			classifierMapTask.setup(strippedHeader);
-
-		} catch (DistributedWekaException e) {
-			LOGGER.error("Could not instantiate ClassifierMapFunction. Error: [" + e + "]");
 		} catch (Exception e) {
-			LOGGER.error("Could not instantiate classifier [" + classifierClassName + "]. Error: [" + e + "]");
+			LOGGER.error("Could not create classifier [" + classifierClassName + "]. Error: [" + e + "]");
 		}
 
 	}

@@ -32,20 +32,20 @@ public class CSVHeaderSparkJob {
 	 * @param outputFile
 	 *            : file for reduced results
 	 */
-	public static void loadCVSFile(SparkConf conf, JavaSparkContext context, String inputFile, String outputFile) {
-		JavaRDD<String> csvFile = context.textFile(inputFile);
+	public static void loadCVSFile(SparkConf conf, JavaSparkContext context, String inputFilePath, String outputFilePath) {
+		JavaRDD<String> csvFile = context.textFile(inputFilePath);
 		Instances header = csvFile.glom().map(new CSVHeaderMapFunction(Utils.parseCSVLine(csvFile.first()).length)).reduce(new CSVHeaderReduceFunction());
 		PrintWriter writer = null;
 		try {
-			writer = new PrintWriter(outputFile, "UTF-8");
+			writer = new PrintWriter(outputFilePath, "UTF-8");
 			writer.println(header);
 		} catch (Exception ex) {
-			LOGGER.error("Could not write header to file " + outputFile + ". Error: [" + ex + "]");
+			LOGGER.error("Could not write header to file " + outputFilePath + ". Error: [" + ex + "]");
 		} finally {
 			if (writer != null) {
+				LOGGER.info("Wrote file [" + outputFilePath + "]");
 				writer.close();
 			}
 		}
 	}
-
 }

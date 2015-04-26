@@ -1,4 +1,4 @@
-package com.integration.weka.spark.scoring;
+package com.integration.weka.spark.score;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -11,13 +11,13 @@ import weka.core.Instances;
 import weka.distributed.DistributedWekaException;
 import weka.distributed.WekaScoringMapTask;
 
-public class ScoringMapFunction implements Function<List<Instance>, List<double[]>> {
+public class ScoreMapFunction implements Function<List<Instance>, List<double[]>> {
 
-	private static Logger LOGGER = Logger.getLogger(ScoringMapFunction.class);
+	private static Logger LOGGER = Logger.getLogger(ScoreMapFunction.class);
 
 	private WekaScoringMapTask wekaScoringMapTask;
 
-	public ScoringMapFunction(Object model, Instances modelHeader, Instances dataHeader) {
+	public ScoreMapFunction(Object model, Instances modelHeader, Instances dataHeader) {
 		try {
 			wekaScoringMapTask = new WekaScoringMapTask();
 			wekaScoringMapTask.setModel(model, modelHeader, dataHeader);

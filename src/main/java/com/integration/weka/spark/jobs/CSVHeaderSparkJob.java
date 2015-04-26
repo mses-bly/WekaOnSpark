@@ -34,7 +34,7 @@ public class CSVHeaderSparkJob {
 	 */
 	public static void loadCVSFile(SparkConf conf, JavaSparkContext context, String inputFilePath, String outputFilePath) {
 		JavaRDD<String> csvFile = context.textFile(inputFilePath);
-		Instances header = csvFile.glom().map(new CSVHeaderMapFunction(Utils.parseCSVLine(csvFile.first()).length, true)).reduce(new CSVHeaderReduceFunction());
+		Instances header = csvFile.glom().map(new CSVHeaderMapFunction(Utils.parseCSVLine(csvFile.first()).length)).reduce(new CSVHeaderReduceFunction());
 		PrintWriter writer = null;
 		try {
 			writer = new PrintWriter(outputFilePath, "UTF-8");

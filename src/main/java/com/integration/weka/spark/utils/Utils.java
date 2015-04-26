@@ -1,18 +1,15 @@
 package com.integration.weka.spark.utils;
 
-import java.io.BufferedReader;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.StringReader;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 import org.apache.log4j.Logger;
-import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.function.Function;
 
-import weka.classifiers.Classifier;
 import weka.core.Instance;
 import weka.core.Instances;
-import weka.core.SerializationHelper;
 import weka.distributed.CSVToARFFHeaderMapTask;
 import weka.distributed.CSVToARFFHeaderReduceTask;
 import weka.distributed.DistributedWekaException;
@@ -20,6 +17,7 @@ import au.com.bytecode.opencsv.CSVReader;
 
 public class Utils {
 	private static Logger LOGGER = Logger.getLogger(Utils.class);
+
 	/***********************************************
 	 * Classes *
 	 ***********************************************/
@@ -27,12 +25,6 @@ public class Utils {
 	/**
 	 * Spark Function for Parsing a CSV line
 	 */
-	private static class ParseLine implements Function<String, String[]> {
-		public String[] call(String line) throws Exception {
-			CSVReader reader = new CSVReader(new StringReader(line));
-			return reader.readNext();
-		}
-	}
 
 	private static class InstanceFromLineBuilder implements Function<String, Instance> {
 		private Instances strippedHeader;
@@ -55,70 +47,22 @@ public class Utils {
 
 	}
 
-
 	/***********************************************
 	 * Static Accessors *
 	 ***********************************************/
 
-	public static ParseLine getParseLineFunction() {
-		return new ParseLine();
-	}
-
 	public static InstanceFromLineBuilder getInstanceFromLineBuilder(Instances fullDataHeader) {
 		try {
-		return new InstanceFromLineBuilder(fullDataHeader);
+			return new InstanceFromLineBuilder(fullDataHeader);
 		} catch (Exception ex) {
 			LOGGER.error("Could not obtain Instance Builder. Error: [" + ex + "]");
 		}
 		return null;
 	}
 
-
 	/***********************************************
 	 * Various utility functions *
 	 ***********************************************/
-
-	/**
-	 * Saves a model to disk
-	 * 
-	 * @param output
-	 *            Output file name - full path
-	 * @param classifier
-	 *            Model to write to disk
-	 * @throws Exception
-	 */
-	public static void writeModelToDisk(String output, Classifier classifier) throws Exception {
-		SerializationHelper.write(output, classifier);
-	}
-
-	/**
-	 * Loads a model from file
-	 * 
-	 * @param input
-	 *            Input file that contains the model
-	 * @return Classifier instance read from file
-	 * @throws Exception
-	 */
-	public static Classifier readModelFromDisk(String input) throws Exception {
-		return (Classifier) SerializationHelper.read(input);
-	}
-
-	/**
-	 * Reads the first line of a file: used to read very short files without
-	 * parallelism.
-	 * 
-	 * @param fileName
-	 * @return line read
-	 */
-	public static String readLineFromFile(String fileName) {
-		try {
-			BufferedReader reader = new BufferedReader(new FileReader(fileName));
-			return reader.readLine();
-		} catch (Exception e) {
-			LOGGER.error("Could not read file [" + fileName + "]. Error: [" + e + "]");
-		}
-		return null;
-	}
 
 	/**
 	 * Same as <code>getParseLineFunction</code> but out of Spark context. No
@@ -137,20 +81,28 @@ public class Utils {
 		return null;
 	}
 
-	public static String doubleArrayToString(double[] arr) {
-		String str = "[";
-		if (arr != null && arr.length > 0) {
-			str += String.valueOf(arr[0]);
-			for (int i = 1; i < arr.length; i++) {
-				str += "," + arr[i];
-			}
-		}
-		str += "]";
-		return str;
+	public static String getDateAsStringFormat(Date date, String format) {
+		SimpleDateFormat df = new SimpleDateFormat(format);
+		return df.format(date);
 	}
 
-	public static <T> JavaRDD<T>[] splitRDD(double[] weights, JavaRDD<T> data) {
-		return data.randomSplit(weights);
+	/**
+	 * Get the index of biggest element in the array. Not very sophisticated,
+	 * but useful when values is small enough.
+	 * 
+	 * @param values
+	 * @return
+	 */
+	public static int getBiggestElementIndex(double[] values) {
+		double bgValue = Double.MIN_VALUE;
+		int bgIndex = -1;
+		for (int i = 0; i < values.length; i++) {
+			if (values[i] > bgValue) {
+				bgValue = values[i];
+				bgIndex = i;
+			}
+		}
+		return bgIndex;
 	}
 
 }

@@ -33,12 +33,12 @@ public class ClassifierSparkJob {
 	 *            : Spark configuration
 	 * @param context
 	 *            : Spark context
-	 * @param classifierName
+	 * @param classifierFullName
 	 *            : Classifier full qualified name
-	 * @param inputFile
+	 * @param inputFilePath
 	 *            : Path to input data.
-	 * @param outputFile
-	 *            : Output folder for model.
+	 * @param outputFilePath
+	 *            : Output path for model.
 	 */
 	public static void buildClassifier(SparkConf conf, JavaSparkContext context, String classifierFullName, String inputFilePath, String outputFilePath) {
 		// Load the data file

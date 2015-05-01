@@ -11,6 +11,7 @@ import org.apache.spark.api.java.JavaSparkContext;
 import com.integration.weka.spark.jobs.CSVHeaderSparkJob;
 import com.integration.weka.spark.jobs.ClassifierSparkJob;
 import com.integration.weka.spark.jobs.EvaluationSparkJob;
+import com.integration.weka.spark.jobs.KFoldClassifierSparkJob;
 import com.integration.weka.spark.jobs.ScoreSparkJob;
 
 /**
@@ -29,13 +30,8 @@ public class Launcher {
 		JavaSparkContext context = new JavaSparkContext(conf);
 		if (args.length == 0) {
 			LOGGER.error("Please provide some arguments");
-			//List<String> classifierFullNameList, String trainDataInputFilePath, String evaluaeDataInputFilePath
-			//			List<String> classifiersToEvaluate = new ArrayList<String>();
-			//			classifiersToEvaluate.add("weka.classifiers.trees.RandomForest");
-			//			classifiersToEvaluate.add("weka.classifiers.functions.LinearRegression");
 			//			String trainDataInputFilePath = "/home/moises/Moises/Projects/WekaOnSpark/testing_files/datapolytest_reduced.csv";
-			//			String evaluateDataInputFilePath = "/home/moises/Moises/Projects/WekaOnSpark/testing_files/datapolytest_reduced.csv";
-			//			launchClassifierEvaluationJob(conf, context, classifiersToEvaluate, trainDataInputFilePath, evaluateDataInputFilePath);
+			//			launchKFoldClassifierJob(conf, context, "weka.classifiers.trees.RandomForest", trainDataInputFilePath, 10);
 		} else {
 			String job = args[0];
 			if (job.equals("HEADER")) {
@@ -62,7 +58,12 @@ public class Launcher {
 							launchClassifierEvaluationJob(conf, context, classifiersToEvaluate, trainDataInputFilePath, evaluateDataInputFilePath);
 
 						} else {
-							LOGGER.error("Unknown JOB.");
+							if (job.equals("KFOLD_CLASSIFY")) {
+								//String classifierFullName, String inputFilePath, int kFolds
+								launchKFoldClassifierJob(conf, context, args[1], args[2], Integer.valueOf(args[3]));
+							} else {
+								LOGGER.error("Unknown JOB.");
+							}
 						}
 					}
 				}
@@ -96,6 +97,13 @@ public class Launcher {
 		String outputFilePath = "output_evaluation_" + Utils.getDateAsStringFormat(new Date(), "yyyymmddhhmmss") + ".evaluation";
 		EvaluationSparkJob.evaluate(conf, context, classifierFullNameList, trainDataInputFilePath, evaluateDataInputFilePath, outputFilePath);
 		LOGGER.info("------- Finished evaluation job -------");
+	}
+
+	private static void launchKFoldClassifierJob(SparkConf conf, JavaSparkContext context, String classifierFullName, String inputFilePath, int kFolds) {
+		LOGGER.info("------- Launching kFold classifier training job -------");
+		String outputFilePathPrefix = "output_model_" + classifierFullName + "_" + Utils.getDateAsStringFormat(new Date(), "yyyymmddhhmmss");
+		KFoldClassifierSparkJob.buildClassifiers(conf, context, classifierFullName, kFolds, inputFilePath, outputFilePathPrefix);
+		LOGGER.info("------- Finished kFold classifier training job -------");
 	}
 
 }

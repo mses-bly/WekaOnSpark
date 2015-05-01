@@ -16,11 +16,13 @@ SPARK_HOME=${SELFD}/spark-1.2.1-bin-hadoop2.4/bin
 LAUNCHER_CLASS=com.integration.weka.spark.utils.Launcher
 WEKA_JAR_PATH=${SELFD}/target
 CLASSIFIER=weka.classifiers.trees.RandomForest
+# CLASSIFIER=weka.classifiers.functions.LinearRegression
 INPUT_FILES_PATH=${SELFD}/testing_files
 # JOB=HEADER
 # JOB=CLASSIFY
 # JOB=SCORE
-JOB=EVALUATION
+# JOB=EVALUATION
+JOB=KFOLD_CLASSIFY
 
 
 mvn package
@@ -68,6 +70,17 @@ case ${JOB} in
 		weka.classifiers.functions.Logistic \
 		${INPUT_FILES_PATH}/diabetes.csv \
 		${INPUT_FILES_PATH}/diabetes.csv
+	;;
+
+	KFOLD_CLASSIFY )
+		${SPARK_HOME}/spark-submit \
+		--class ${LAUNCHER_CLASS} \
+		${OPTIONS} \
+		${WEKA_JAR_PATH}/integration-weka-spark-0.0.1-SNAPSHOT.jar \
+		${JOB} \
+		${CLASSIFIER} \
+		${INPUT_FILES_PATH}/datapolytest_reduced.csv \
+		10
 	;;
 
 esac

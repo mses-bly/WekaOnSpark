@@ -5,7 +5,6 @@ import java.io.StringReader;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 
-import org.apache.log4j.Logger;
 import org.apache.spark.api.java.function.Function;
 
 import weka.core.Instance;
@@ -16,8 +15,6 @@ import weka.distributed.DistributedWekaException;
 import au.com.bytecode.opencsv.CSVReader;
 
 public class Utils {
-	private static Logger LOGGER = Logger.getLogger(Utils.class);
-
 	/***********************************************
 	 * Classes *
 	 ***********************************************/

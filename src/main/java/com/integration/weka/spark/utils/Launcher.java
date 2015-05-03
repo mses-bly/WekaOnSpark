@@ -21,7 +21,6 @@ public class Launcher {
 
 	private static Logger LOGGER = Logger.getLogger(Launcher.class);
 
-	@SuppressWarnings("resource")
 	public static void main(String[] args) {
 		SparkConf conf = new SparkConf().setAppName("SparkWekaIntegration");
 		JavaSparkContext context = new JavaSparkContext(conf);

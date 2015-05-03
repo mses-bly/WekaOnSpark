@@ -31,7 +31,7 @@ public class CSVHeaderSparkJob {
 		}
 		JavaRDD<String> csvFile = context.textFile(opts.getOption(Constants.OPTION_INPUT_FILE));
 		Instances header = csvFile.glom().map(new CSVHeaderMapFunction(Utils.parseCSVLine(csvFile.first()).length)).reduce(new CSVHeaderReduceFunction());
-		String outputFilePath = "output_header_" + Utils.getDateAsStringFormat(new Date(), "YYYY-MM-dd_kk:mm:ss") + ".header";
+		String outputFilePath = "header_" + Utils.getDateAsStringFormat(new Date(), "YYYY-MM-dd_kk:mm:ss") + ".header";
 		PrintWriter writer = new PrintWriter(outputFilePath, "UTF-8");
 		writer.println(header);
 		LOGGER.info("Wrote file [" + outputFilePath + "]");

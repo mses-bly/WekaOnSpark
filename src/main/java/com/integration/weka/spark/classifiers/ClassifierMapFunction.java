@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 
-import org.apache.log4j.Logger;
 import org.apache.spark.api.java.function.PairFlatMapFunction;
 
 import scala.Tuple2;
@@ -13,20 +12,16 @@ import weka.core.Instance;
 import weka.core.Instances;
 import weka.distributed.CSVToARFFHeaderMapTask;
 import weka.distributed.CSVToARFFHeaderReduceTask;
-import weka.distributed.DistributedWekaException;
 import weka.distributed.WekaClassifierMapTask;
 
 public class ClassifierMapFunction implements PairFlatMapFunction<Iterator<String>, Integer, Classifier> {
-
-	private static Logger LOGGER = Logger.getLogger(ClassifierMapFunction.class);
 
 	private ArrayList<WekaClassifierMapTask> classifierMapTasks;
 	private Instances strippedHeader;
 	private List<String> attributesNames;
 	private int kFolds;
 
-	public ClassifierMapFunction(Instances trainingHeader, String classifierClassName, int kFolds) throws DistributedWekaException, ClassNotFoundException, InstantiationException,
-			IllegalAccessException {
+	public ClassifierMapFunction(Instances trainingHeader, String classifierClassName, int kFolds) throws Exception {
 		strippedHeader = CSVToARFFHeaderReduceTask.stripSummaryAtts(trainingHeader);
 		strippedHeader.setClassIndex(trainingHeader.classIndex());
 		attributesNames = CSVToARFFHeaderMapTask.instanceHeaderToAttributeNameList(strippedHeader);

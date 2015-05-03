@@ -1,74 +1,127 @@
 package com.integration.weka.spark.jobs;
 
 import java.io.PrintWriter;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.log4j.Logger;
 import org.apache.spark.SparkConf;
+import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 
+import scala.Tuple2;
 import weka.classifiers.Classifier;
+import weka.classifiers.evaluation.AggregateableEvaluation;
 import weka.classifiers.evaluation.Evaluation;
 import weka.core.Instances;
 
 import com.integration.weka.spark.classifiers.ClassifierMapFunction;
 import com.integration.weka.spark.classifiers.ClassifierReduceFunction;
 import com.integration.weka.spark.evaluation.EvaluationMapFunction;
-import com.integration.weka.spark.evaluation.EvaluationReduceFunction;
 import com.integration.weka.spark.headers.CSVHeaderMapFunction;
 import com.integration.weka.spark.headers.CSVHeaderReduceFunction;
+import com.integration.weka.spark.utils.Constants;
+import com.integration.weka.spark.utils.IntegerPartitioner;
+import com.integration.weka.spark.utils.Options;
 import com.integration.weka.spark.utils.Utils;
 
 /**
- * Evaluation of classifiers.
- * 
+ * K-Fold evaluation of classifiers.
  * @author Moises
  *
  */
+
 public class EvaluationSparkJob {
 	private static Logger LOGGER = Logger.getLogger(EvaluationSparkJob.class);
 
-	public static void evaluate(SparkConf conf, JavaSparkContext context, List<String> classifierFullNameList, String trainDataInputFilePath, String evaluateDataInputFilePath, String outputFilePath) {
-		PrintWriter writer = null;
-		try {
-			writer = new PrintWriter(outputFilePath, "UTF-8");
-			for (String classifierName : classifierFullNameList) {
-				Evaluation evaluation = evaluateSingleClassifier(conf, context, classifierName, trainDataInputFilePath, evaluateDataInputFilePath);
-				writer.println("======== Evaluation for classifier: " + classifierName + " ========");
-				writer.println(evaluation.toSummaryString(true));
-			}
-		} catch (Exception ex) {
-			LOGGER.error("Could not complete evaluation job. Error: [" + ex + "]");
-		} finally {
-			if (writer != null) {
-				writer.close();
-			}
+	public static void evaluateClassifier(SparkConf conf, JavaSparkContext context, Options opts) throws Exception {
+		if (!opts.hasOption(Constants.OPTION_INPUT_FILE)) {
+			throw new Exception("Must provide training data file for EVALUATION job");
+		}
+		if (!opts.hasOption(Constants.OPTION_TEST_FILE) && !opts.hasOption(Constants.OPTION_FOLDS)) {
+			throw new Exception("Must provide a test file or perform cross valdation for EVALUATION job");
+		}
+		if (!opts.hasOption(Constants.OPTION_CLASSIFIER_NAME)) {
+			throw new Exception("Must provide a classifier name for EVALUATION job");
+		}
+		Evaluation evaluation = null;
+		int nFolds = 1;
+		//Ignore cross validation, use test file for evaluate classifier
+		if (opts.hasOption(Constants.OPTION_TEST_FILE)) {
+			evaluation = evaluateOnTestFile(conf, context, opts.getOption(Constants.OPTION_CLASSIFIER_NAME), opts.getOption(Constants.OPTION_INPUT_FILE), opts.getOption(Constants.OPTION_TEST_FILE));
+		} else {
+			// perform cross validation
+			nFolds = Integer.valueOf(opts.getOption(Constants.OPTION_FOLDS));
+			evaluation = crossValidation(conf, context, opts.getOption(Constants.OPTION_CLASSIFIER_NAME), nFolds, opts.getOption(Constants.OPTION_INPUT_FILE));
+		}
+		if (evaluation != null) {
+			String outputFilePath = "evaluation_" + opts.getOption(Constants.OPTION_CLASSIFIER_NAME) + ".txt";
+			PrintWriter writer = new PrintWriter(outputFilePath, "UTF-8");
+			writer.println("======== Evaluation for classifier: " + opts.getOption(Constants.OPTION_CLASSIFIER_NAME) + " ========");
+
+			writer.println("======== Number of folds:" + nFolds + " ========");
+			writer.println(evaluation.toSummaryString(true));
+			writer.close();
+			LOGGER.info("Score for [" + opts.getOption(Constants.OPTION_CLASSIFIER_NAME) + "] saved at [" + outputFilePath + "]");
 		}
 	}
 
-	private static Evaluation evaluateSingleClassifier(SparkConf conf, JavaSparkContext context, String classifierName, String trainDataInputFilePath, String evaluateDataInputFilePath) {
-		try {
-			// Load the data file
-			JavaRDD<String> csvFile = context.textFile(trainDataInputFilePath);
+	private static Evaluation evaluateOnTestFile(SparkConf conf, JavaSparkContext context, String classifierName, String trainDataInputFilePath, String evaluationFilePath) throws Exception {
+		// Load the data file
+		JavaRDD<String> csvFile = context.textFile(trainDataInputFilePath);
+		// Group input data by partition rather than by lines
+		JavaRDD<List<String>> trainingData = csvFile.glom();
+		// Build Weka Header
+		Instances header = trainingData.map(new CSVHeaderMapFunction(Utils.parseCSVLine(csvFile.first()).length)).reduce(new CSVHeaderReduceFunction());
 
-			// Group input data by partition rather than by lines
-			JavaRDD<List<String>> trainingData = csvFile.glom();
-
-			// Build Weka Header
-			Instances header = trainingData.map(new CSVHeaderMapFunction(Utils.parseCSVLine(csvFile.first()).length)).reduce(new CSVHeaderReduceFunction());
-
-			// Train classifier
-			Classifier classifier = trainingData.map(new ClassifierMapFunction(header, classifierName)).reduce(new ClassifierReduceFunction());
-
-			// Evaluation of the classifier
-			csvFile = context.textFile(evaluateDataInputFilePath);
-			JavaRDD<List<String>> evaluationData = csvFile.glom();
-			Evaluation evaluation = evaluationData.map(new EvaluationMapFunction(classifier, header)).reduce(new EvaluationReduceFunction());
-			return evaluation;
-		} catch (Exception ex) {
-			LOGGER.error("Could not complete evaluation job for classifier [" + classifierName + "]. Error: [" + ex + "]");
+		// Train one classifier per fold
+		JavaPairRDD<Integer, Classifier> classifierPerFold = csvFile.mapPartitionsToPair(new ClassifierMapFunction(header, classifierName, 1));
+		classifierPerFold = classifierPerFold.sortByKey();
+		classifierPerFold = classifierPerFold.partitionBy(new IntegerPartitioner(1));
+		JavaPairRDD<Integer, Classifier> reducedByFold = classifierPerFold.mapPartitionsToPair(new ClassifierReduceFunction());
+		List<Classifier> kFoldClassifiers = new ArrayList<Classifier>(1);
+		List<Tuple2<Integer, Classifier>> aggregated = reducedByFold.collect();
+		for (Tuple2<Integer, Classifier> t : aggregated) {
+			kFoldClassifiers.add(t._1(), t._2());
 		}
-		return null;
+
+		//Evaluate on file
+		csvFile = context.textFile(evaluationFilePath);
+		List<Evaluation> evaluations = csvFile.glom().map(new EvaluationMapFunction(header, kFoldClassifiers, 1)).collect();
+		AggregateableEvaluation aggregateableEvaluation = new AggregateableEvaluation(evaluations.get(0));
+		for (Evaluation eval : evaluations) {
+			aggregateableEvaluation.aggregate(eval);
+		}
+		return aggregateableEvaluation;
+	}
+
+	private static Evaluation crossValidation(SparkConf conf, JavaSparkContext context, String classifierName, int kFolds, String trainDataInputFilePath) throws Exception {
+		// Load the data file
+		JavaRDD<String> csvFile = context.textFile(trainDataInputFilePath);
+
+		// Group input data by partition rather than by lines
+		JavaRDD<List<String>> trainingData = csvFile.glom();
+
+		// Build Weka Header
+		Instances header = trainingData.map(new CSVHeaderMapFunction(Utils.parseCSVLine(csvFile.first()).length)).reduce(new CSVHeaderReduceFunction());
+
+		// Train one classifier per fold
+		JavaPairRDD<Integer, Classifier> classifierPerFold = csvFile.mapPartitionsToPair(new ClassifierMapFunction(header, classifierName, kFolds));
+		classifierPerFold = classifierPerFold.sortByKey();
+		classifierPerFold = classifierPerFold.partitionBy(new IntegerPartitioner(kFolds));
+		JavaPairRDD<Integer, Classifier> reducedByFold = classifierPerFold.mapPartitionsToPair(new ClassifierReduceFunction());
+		List<Classifier> kFoldClassifiers = new ArrayList<Classifier>(kFolds);
+		List<Tuple2<Integer, Classifier>> aggregated = reducedByFold.collect();
+		for (Tuple2<Integer, Classifier> t : aggregated) {
+			kFoldClassifiers.add(t._1(), t._2());
+		}
+
+		List<Evaluation> evaluations = trainingData.map(new EvaluationMapFunction(header, kFoldClassifiers, kFolds)).collect();
+		AggregateableEvaluation aggregateableEvaluation = new AggregateableEvaluation(evaluations.get(0));
+		for (Evaluation eval : evaluations) {
+			aggregateableEvaluation.aggregate(eval);
+		}
+		return aggregateableEvaluation;
 	}
 }

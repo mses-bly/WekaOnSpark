@@ -55,8 +55,6 @@ public class EvaluationSparkJob {
 			// Group input data by partition rather than by lines
 			JavaRDD<List<String>> trainingData = csvFile.glom();
 
-			// Training classifier
-
 			// Build Weka Header
 			Instances header = trainingData.map(new CSVHeaderMapFunction(Utils.parseCSVLine(csvFile.first()).length)).reduce(new CSVHeaderReduceFunction());
 

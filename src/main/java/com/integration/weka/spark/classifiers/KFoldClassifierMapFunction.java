@@ -1,11 +1,13 @@
 package com.integration.weka.spark.classifiers;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 import org.apache.log4j.Logger;
-import org.apache.spark.api.java.function.Function;
+import org.apache.spark.api.java.function.PairFlatMapFunction;
 
+import scala.Tuple2;
 import weka.classifiers.Classifier;
 import weka.core.Instance;
 import weka.core.Instances;
@@ -17,7 +19,7 @@ import weka.distributed.WekaClassifierMapTask;
  * Builds one classifier per fold.
  *
  */
-public class KFoldClassifierMapFunction implements Function<List<String>, List<Classifier>> {
+public class KFoldClassifierMapFunction implements PairFlatMapFunction<Iterator<String>, Integer, Classifier> {
 
 	private static Logger LOGGER = Logger.getLogger(KFoldClassifierMapFunction.class);
 
@@ -56,19 +58,21 @@ public class KFoldClassifierMapFunction implements Function<List<String>, List<C
 		}
 	}
 
-	public List<Classifier> call(List<String> v1) throws Exception {
-		ArrayList<Classifier> classifiers = new ArrayList<Classifier>();
+	public List<Tuple2<Integer, Classifier>> call(List<String> v1) throws Exception {
+		List<Tuple2<Integer, Classifier>> classifiers = new ArrayList<Tuple2<Integer, Classifier>>();
 		CSVToARFFHeaderMapTask rowParser = new CSVToARFFHeaderMapTask();
 		rowParser.initParserOnly(attributesNames);
 		try {
 			for (int i = 0; i < v1.size(); i++) {
 				String[] parsedRow = rowParser.parseRowOnly(v1.get(i));
 				Instance currentInstance = rowParser.makeInstance(strippedHeader, true, parsedRow);
-				classifierMapTasks.get(i % kFolds).processInstance(currentInstance);
+				for (int j = 0; j < kFolds; j++) {
+					classifierMapTasks.get(j).processInstance(currentInstance);
+				}
 			}
 			for (int i = 0; i < kFolds; i++) {
 				classifierMapTasks.get(i).finalizeTask();
-				classifiers.add(classifierMapTasks.get(i).getClassifier());
+				classifiers.add(new Tuple2<Integer, Classifier>(i, classifierMapTasks.get(i).getClassifier()));
 			}
 			return classifiers;
 
@@ -78,5 +82,22 @@ public class KFoldClassifierMapFunction implements Function<List<String>, List<C
 		return null;
 	}
 
+	public Iterable<Tuple2<Integer, Classifier>> call(Iterator<String> t) throws Exception {
+		List<Tuple2<Integer, Classifier>> classifiers = new ArrayList<Tuple2<Integer, Classifier>>();
+		CSVToARFFHeaderMapTask rowParser = new CSVToARFFHeaderMapTask();
+		rowParser.initParserOnly(attributesNames);
+		while (t.hasNext()) {
+			String[] parsedRow = rowParser.parseRowOnly(t.next());
+			Instance currentInstance = rowParser.makeInstance(strippedHeader, true, parsedRow);
+			for (int j = 0; j < kFolds; j++) {
+				classifierMapTasks.get(j).processInstance(currentInstance);
+			}
+		}
+		for (int i = 0; i < kFolds; i++) {
+			classifierMapTasks.get(i).finalizeTask();
+			classifiers.add(new Tuple2<Integer, Classifier>(i, classifierMapTasks.get(i).getClassifier()));
+		}
+		return classifiers;
+	}
 
 }

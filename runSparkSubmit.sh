@@ -6,13 +6,14 @@ SELFN=$(basename ${SELFD})
 SELFU=${SELF%.*}
 SELFZ=${SELFD}/${SELF}
 
-[ -d spark-1.2.1-bin-hadoop2.4 ] || {
-	curl -sL http://d3kbcqa49mib13.cloudfront.net/spark-1.2.1-bin-hadoop2.4.tgz | tar vzx || exit ${LINENO}
-}
+# [ -d spark-1.2.1-bin-hadoop2.4 ] || {
+# 	curl -sL http://d3kbcqa49mib13.cloudfront.net/spark-1.2.1-bin-hadoop2.4.tgz | tar vzx || exit ${LINENO}
+# }
 
-[ -x spark-1.2.1-bin-hadoop2.4/bin ] || exit ${LINENO}
+# [ -x spark-1.2.1-bin-hadoop2.4/bin ] || exit ${LINENO}
 
-SPARK_HOME=${SELFD}/spark-1.2.1-bin-hadoop2.4/bin
+# SPARK_HOME=${SELFD}/spark-1.2.1-bin-hadoop2.4/bin
+SPARK_HOME=/home/moises/Moises/Installs/spark-1.2.1-bin-hadoop2.4/bin
 LAUNCHER_CLASS=com.integration.weka.spark.utils.Launcher
 WEKA_JAR_PATH=${SELFD}/target
 CLASSIFIER=weka.classifiers.trees.RandomForest
@@ -22,7 +23,8 @@ INPUT_FILES_PATH=${SELFD}/testing_files
 # JOB=CLASSIFY
 # JOB=SCORE
 # JOB=EVALUATION
-JOB=KFOLD_CLASSIFY
+# JOB=KFOLD_CLASSIFY
+JOB=KFOLD_EVALUATION
 
 
 mvn package
@@ -79,6 +81,18 @@ case ${JOB} in
 		${WEKA_JAR_PATH}/integration-weka-spark-0.0.1-SNAPSHOT.jar \
 		${JOB} \
 		${CLASSIFIER} \
+		${INPUT_FILES_PATH}/diabetes.csv \
+		10
+	;;
+
+	KFOLD_EVALUATION )
+		${SPARK_HOME}/spark-submit \
+		--class ${LAUNCHER_CLASS} \
+		${OPTIONS} \
+		${WEKA_JAR_PATH}/integration-weka-spark-0.0.1-SNAPSHOT.jar \
+		${JOB} \
+		1 \
+		weka.classifiers.trees.REPTree \
 		${INPUT_FILES_PATH}/datapolytest_reduced.csv \
 		10
 	;;

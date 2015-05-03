@@ -1,11 +1,13 @@
 package com.integration.weka.spark.evaluation;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.log4j.Logger;
 import org.apache.spark.api.java.function.Function;
 
 import weka.classifiers.Classifier;
+import weka.classifiers.evaluation.AggregateableEvaluation;
 import weka.classifiers.evaluation.Evaluation;
 import weka.core.Attribute;
 import weka.core.Instance;
@@ -15,37 +17,37 @@ import weka.distributed.CSVToARFFHeaderMapTask;
 import weka.distributed.CSVToARFFHeaderReduceTask;
 import weka.distributed.WekaClassifierEvaluationMapTask;
 
-/**
- * Evaluates a classifier on a number of examples instances.
- * 
- * @author Moises
- *
- */
-public class EvaluationMapFunction implements Function<List<String>, Evaluation> {
+public class KFoldEvaluationMapFunction implements Function<List<String>, Evaluation> {
 
-	private static Logger LOGGER = Logger.getLogger(EvaluationMapFunction.class);
+	private static Logger LOGGER = Logger.getLogger(KFoldEvaluationMapFunction.class);
 
-	private WekaClassifierEvaluationMapTask evaluationMapTask;
+	private ArrayList<WekaClassifierEvaluationMapTask> evaluationMapTasks;
 	private Instances strippedHeader;
 	private Attribute classSummaryAttribute;
 	private Attribute classAttribute;
+	private int kFolds;
 
-	public EvaluationMapFunction(Classifier classifier, Instances dataHeader) {
+	public KFoldEvaluationMapFunction(Instances dataHeader, List<Classifier> classifiers, int kFolds) {
 		try {
-			evaluationMapTask = new WekaClassifierEvaluationMapTask();
-
 			strippedHeader = CSVToARFFHeaderReduceTask.stripSummaryAtts(dataHeader);
-			evaluationMapTask.setTotalNumFolds(1);
-
-			evaluationMapTask.setClassifier(classifier);
-
 			classSummaryAttribute = dataHeader.attribute(CSVToARFFHeaderMapTask.ARFF_SUMMARY_ATTRIBUTE_PREFIX + dataHeader.classAttribute().name());
 			classAttribute = dataHeader.classAttribute();
+			long seed = 1L;
+			this.kFolds = kFolds;
 
-			evaluationMapTask.setup(strippedHeader, priors(), count(), System.currentTimeMillis(), 0);
+			evaluationMapTasks = new ArrayList<WekaClassifierEvaluationMapTask>();
+			for (int i = 0; i < kFolds; i++) {
+				WekaClassifierEvaluationMapTask evaluationTask = new WekaClassifierEvaluationMapTask();
+				evaluationTask.setTotalNumFolds(kFolds);
+				evaluationTask.setFoldNumber(i + 1);
+				evaluationTask.setClassifier(classifiers.get(i));
+				evaluationTask.setup(strippedHeader, priors(), count(), seed, 0);
+				evaluationMapTasks.add(evaluationTask);
+			}
 		} catch (Exception ex) {
-			LOGGER.error("Could not evaluate classifier. Error: [" + ex + "]");
+			LOGGER.error("Could not perform k-folded evaluation. Error: [" + ex + "]");
 		}
+
 	}
 
 	/**
@@ -80,7 +82,8 @@ public class EvaluationMapFunction implements Function<List<String>, Evaluation>
 	/**
 	 * Count the number of values in the class attribute. If the class attribute
 	 * is nominal, count each possible nominal value. If the class attribute is
-	 * numeric, get the count of instances (the number of records)
+	 * numeric, get the count of instances (the number
+	 *  of records)
 	 * 
 	 */
 	private double count() {
@@ -90,23 +93,33 @@ public class EvaluationMapFunction implements Function<List<String>, Evaluation>
 		return ArffSummaryNumericMetric.COUNT.valueFromAttribute(classSummaryAttribute);
 	}
 
-	public Evaluation call(List<String> v1) {
+	public Evaluation call(List<String> v1) throws Exception {
 		try {
-			// This is done here because of a non serializable class that Weka distributed package uses
-			// - field (class "weka.distributed.CSVToARFFHeaderMapTask", name:
-			// "m_parser", type: "class au.com.bytecode.opencsv.CSVParser")
 			CSVToARFFHeaderMapTask rowParser = new CSVToARFFHeaderMapTask();
 			rowParser.initParserOnly(CSVToARFFHeaderMapTask.instanceHeaderToAttributeNameList(strippedHeader));
-			for (String str : v1) {
-				String[] parsedRow = rowParser.parseRowOnly(str);
-				Instance currentInstance = rowParser.makeInstance(strippedHeader, true, parsedRow);
-				evaluationMapTask.processInstance(currentInstance);
+			for (int i = 0; i < v1.size(); i++) {
+				for (int j = 0; j < kFolds; j++) {
+					String[] parsedRow = rowParser.parseRowOnly(v1.get(i));
+					Instance currentInstance = rowParser.makeInstance(strippedHeader, true, parsedRow);
+					evaluationMapTasks.get(j).processInstance(currentInstance);
+				}
 			}
-			evaluationMapTask.finalizeTask();
-			return evaluationMapTask.getEvaluation();
+
+			AggregateableEvaluation aggregateableEvaluation = null;
+			for (int i = 0; i < kFolds; i++) {
+				evaluationMapTasks.get(i).finalizeTask();
+				Evaluation iFoldEvaluation = evaluationMapTasks.get(i).getEvaluation();
+				if (aggregateableEvaluation == null) {
+					aggregateableEvaluation = new AggregateableEvaluation(iFoldEvaluation);
+				}
+				aggregateableEvaluation.aggregate(iFoldEvaluation);
+				//				System.out.println(evaluationMapTasks.get(i).getEvaluation().toSummaryString());
+			}
+			return aggregateableEvaluation;
 		} catch (Exception ex) {
-			LOGGER.error("Could not evaluate instance. Error: [" + ex + "]");
+			LOGGER.error("Could not perform k-folded evaluation. Error: [" + ex + "]");
 		}
 		return null;
 	}
+
 }

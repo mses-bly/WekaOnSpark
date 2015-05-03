@@ -70,15 +70,11 @@ public class Utils {
 	 * 
 	 * @param line
 	 * @return parsed line
+	 * @throws IOException 
 	 */
-	public static String[] parseCSVLine(String line) {
+	public static String[] parseCSVLine(String line) throws IOException {
 		CSVReader reader = new CSVReader(new StringReader(line));
-		try {
-			return reader.readNext();
-		} catch (IOException e) {
-			LOGGER.error("Could not parse CSV line [" + line + "]. Error: [" + e + "]");
-		}
-		return null;
+		return reader.readNext();
 	}
 
 	public static String getDateAsStringFormat(Date date, String format) {

@@ -17,7 +17,7 @@ import com.integration.weka.spark.utils.Options;
 import com.integration.weka.spark.utils.Utils;
 
 /**
- * Wrapper for launching a header build job.
+ * Create Weka ARFF Header Job
  * 
  * @author Moises
  *
@@ -25,19 +25,7 @@ import com.integration.weka.spark.utils.Utils;
 public class CSVHeaderSparkJob {
 	private static Logger LOGGER = Logger.getLogger(CSVHeaderSparkJob.class);
 	
-	/**
-	 * 
-	 * @param conf
-	 *            : Spark configuration
-	 * @param context
-	 *            : Spark context
-	 * @param inputFile
-	 *            : Path to input data
-	 * @param outputFile
-	 *            : file for reduced results
-	 * @throws Exception 
-	 */
-	public static void loadCVSFile(SparkConf conf, JavaSparkContext context, Options opts) throws Exception {
+	public static void createARFFHeader(SparkConf conf, JavaSparkContext context, Options opts) throws Exception {
 		if (!opts.hasOption(Constants.OPTION_INPUT_FILE)) {
 			throw new Exception("Must provide an input file for HEADER job");
 		}

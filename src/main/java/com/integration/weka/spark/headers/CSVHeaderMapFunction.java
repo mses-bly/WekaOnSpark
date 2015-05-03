@@ -1,13 +1,14 @@
 package com.integration.weka.spark.headers;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.log4j.Logger;
 import org.apache.spark.api.java.function.Function;
 
 import weka.core.Instances;
 import weka.distributed.CSVToARFFHeaderMapTask;
+import weka.distributed.DistributedWekaException;
 
 /**
  * Header builder Map Function.
@@ -17,7 +18,6 @@ import weka.distributed.CSVToARFFHeaderMapTask;
  */
 public class CSVHeaderMapFunction implements Function<List<String>, Instances> {
 
-	private static Logger LOGGER = Logger.getLogger(CSVHeaderMapFunction.class);
 	private CSVToARFFHeaderMapTask csvToARFFHeaderMapTask;
 	private List<String> attributes;
 
@@ -36,19 +36,14 @@ public class CSVHeaderMapFunction implements Function<List<String>, Instances> {
 		attributes.add("CLASS");
 	}
 
-	public Instances call(List<String> arg0) {
-		try {
-			for (String str : arg0) {
-				csvToARFFHeaderMapTask.processRow(str, attributes);
-			}
-			Instances headerInstance = csvToARFFHeaderMapTask.getHeader();
-			headerInstance.setClassIndex(attributes.size() - 1);
-			headerInstance.setRelationName("RELATION");
-			return headerInstance;
-		} catch (Exception e) {
-			LOGGER.error("Could not build header for this training set. Error: [" + e + "]");
+	public Instances call(List<String> arg0) throws DistributedWekaException, IOException {
+		for (String str : arg0) {
+			csvToARFFHeaderMapTask.processRow(str, attributes);
 		}
-		return null;
+		Instances headerInstance = csvToARFFHeaderMapTask.getHeader();
+		headerInstance.setClassIndex(attributes.size() - 1);
+		headerInstance.setRelationName("RELATION");
+		return headerInstance;
 	}
 
 }

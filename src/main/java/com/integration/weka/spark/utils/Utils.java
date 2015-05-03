@@ -105,4 +105,17 @@ public class Utils {
 		return bgIndex;
 	}
 
+	public static Options parseOptions(String[] options) throws Exception {
+		if (options.length % 2 != 0){
+			throw new Exception("Each option should have an associated value!");
+		}
+		Options opts = new Options();
+		int i = 0;
+		while (i < options.length){
+			opts.addOption(options[i], options[i + 1]);
+			i += 2;
+		}
+		return opts;
+	}
+
 }

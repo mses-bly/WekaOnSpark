@@ -48,16 +48,12 @@ public class Utils {
 	}
 
 	/***********************************************
-	 * Static Accessors *
+	 * Static Accessors 
+	 * @throws DistributedWekaException *
 	 ***********************************************/
 
-	public static InstanceFromLineBuilder getInstanceFromLineBuilder(Instances fullDataHeader) {
-		try {
-			return new InstanceFromLineBuilder(fullDataHeader);
-		} catch (Exception ex) {
-			LOGGER.error("Could not obtain Instance Builder. Error: [" + ex + "]");
-		}
-		return null;
+	public static InstanceFromLineBuilder getInstanceFromLineBuilder(Instances fullDataHeader) throws DistributedWekaException {
+		return new InstanceFromLineBuilder(fullDataHeader);
 	}
 
 	/***********************************************
@@ -84,7 +80,7 @@ public class Utils {
 
 	/**
 	 * Get the index of biggest element in the array. Not very sophisticated,
-	 * but useful when values is small enough.
+	 * but useful when values array is small enough.
 	 * 
 	 * @param values
 	 * @return

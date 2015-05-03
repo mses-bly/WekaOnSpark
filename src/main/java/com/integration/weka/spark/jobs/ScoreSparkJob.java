@@ -10,68 +10,73 @@ import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 
 import weka.classifiers.Classifier;
-import weka.core.Attribute;
 import weka.core.Instance;
 import weka.core.Instances;
 import weka.core.SerializationHelper;
 import weka.distributed.CSVToARFFHeaderMapTask;
 import weka.distributed.CSVToARFFHeaderReduceTask;
-import cern.colt.Arrays;
 
 import com.integration.weka.spark.headers.CSVHeaderMapFunction;
 import com.integration.weka.spark.headers.CSVHeaderReduceFunction;
 import com.integration.weka.spark.score.ScoreMapFunction;
+import com.integration.weka.spark.utils.Constants;
+import com.integration.weka.spark.utils.Options;
 import com.integration.weka.spark.utils.Utils;
 
 public class ScoreSparkJob {
 	private static Logger LOGGER = Logger.getLogger(ScoreSparkJob.class);
 
-	public static void scoreDataSet(SparkConf conf, JavaSparkContext context, String modelFilePath, String inputFilePath, String trainFilePath, String outputFilePath) {
-		PrintWriter writer = null;
-		try {
-			// Load the data file to be predicted
-			JavaRDD<String> csvInputFile = context.textFile(inputFilePath);
+	public static void scoreDataSet(SparkConf conf, JavaSparkContext context, Options opts) throws Exception {
+		if (!opts.hasOption(Constants.OPTION_INPUT_FILE)) {
+			throw new Exception("Must provide training data file for SCORE job");
+		}
+		if (!opts.hasOption(Constants.OPTION_SCORE_FILE)) {
+			throw new Exception("Must provide file to score for SCORE job");
+		}
+		if (!opts.hasOption(Constants.OPTION_CLASSIFIER_MODEL_FILE)) {
+			throw new Exception("Must provide classfier model for SCORE job");
+		}
+		String scoreFilePath = opts.getOption(Constants.OPTION_SCORE_FILE);
+		String trainingDataFilePath = opts.getOption(Constants.OPTION_INPUT_FILE);
+		String modelFilePath = opts.getOption(Constants.OPTION_CLASSIFIER_MODEL_FILE);
 
-			int numAttr = Utils.parseCSVLine(csvInputFile.first()).length;
-			List<String> attrNames = new ArrayList<String>();
-			for (int i = 0; i < numAttr ; i++){
-				attrNames.add("A" + i);
-			}
-			
-			CSVToARFFHeaderMapTask csvToARFFHeaderMapTask = new CSVToARFFHeaderMapTask();
-			csvToARFFHeaderMapTask.initParserOnly(attrNames);
-			Instances headerFromInput = csvToARFFHeaderMapTask.getHeader();
+		// Load the data file to be predicted
+		JavaRDD<String> csvInputFile = context.textFile(scoreFilePath);
 
-			JavaRDD<String> csvTrainFile = context.textFile(trainFilePath);
-			Instances headerFromModel = csvTrainFile.glom().map(new CSVHeaderMapFunction(Utils.parseCSVLine(csvTrainFile.first()).length)).reduce(new CSVHeaderReduceFunction());
-			headerFromModel = CSVToARFFHeaderReduceTask.stripSummaryAtts(headerFromModel);
+		int numAttr = Utils.parseCSVLine(csvInputFile.first()).length;
+		List<String> attrNames = new ArrayList<String>();
+		for (int i = 0; i < numAttr; i++) {
+			attrNames.add("A" + i);
+		}
 
-			// Build data Instances RDD
-			JavaRDD<List<Instance>> instanceRDD = csvInputFile.map(Utils.getInstanceFromLineBuilder(headerFromInput)).glom();
+		CSVToARFFHeaderMapTask csvToARFFHeaderMapTask = new CSVToARFFHeaderMapTask();
+		csvToARFFHeaderMapTask.initParserOnly(attrNames);
+		Instances headerFromInput = csvToARFFHeaderMapTask.getHeader();
 
-			// Read model from disc and make prediction
-			Object model = (Classifier) SerializationHelper.read(modelFilePath);
+		JavaRDD<String> csvTrainFile = context.textFile(trainingDataFilePath);
+		Instances headerFromModel = csvTrainFile.glom().map(new CSVHeaderMapFunction(Utils.parseCSVLine(csvTrainFile.first()).length)).reduce(new CSVHeaderReduceFunction());
+		headerFromModel = CSVToARFFHeaderReduceTask.stripSummaryAtts(headerFromModel);
 
-			List<List<double[]>> predictions = instanceRDD.map(new ScoreMapFunction(model, headerFromModel, headerFromInput)).collect();
-			writer = new PrintWriter(outputFilePath, "UTF-8");
+		// Build data Instances RDD
+		JavaRDD<List<Instance>> instanceRDD = csvInputFile.map(Utils.getInstanceFromLineBuilder(headerFromInput)).glom();
 
-			Attribute classAttribute = headerFromModel.classAttribute();
-			for (List<double[]> predictionList : predictions) {
-				for (int i = 0; i < predictionList.size(); i++) {
-					double[] prediction = predictionList.get(i);
-					if (!classAttribute.isNominal()) {
-						writer.println(Arrays.toString(prediction));
-					} else {
-						writer.println(Arrays.toString(prediction) + " " + classAttribute.value(Utils.getBiggestElementIndex(prediction)));
-					}
-				}
-			}
-		} catch (Exception ex) {
-			LOGGER.error("Could not complete scoring job. Error: [" + ex + "]");
-		} finally {
-			if (writer != null) {
-				writer.close();
+		// Read model from disc and make prediction
+		Object model = (Classifier) SerializationHelper.read(modelFilePath);
+
+		List<List<String>> predictions = instanceRDD.map(new ScoreMapFunction(model, headerFromModel, headerFromInput)).collect();
+
+		String modelName = modelFilePath.split("/")[modelFilePath.split("/").length - 1];
+
+		String outputFilePath = "score_" + modelName + ".txt";
+
+		PrintWriter writer = new PrintWriter(outputFilePath, "UTF-8");
+		for (List<String> preds : predictions) {
+			for (String prediction : preds) {
+				writer.println(prediction);
 			}
 		}
+
+		writer.close();
+		LOGGER.info("Score for " + modelName + " saved at [" + outputFilePath + "]");
 	}
 }

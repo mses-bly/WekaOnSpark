@@ -12,7 +12,7 @@ SELFZ=${SELFD}/${SELF}
 
 [ -x spark-1.2.1-bin-hadoop2.4/bin ] || exit ${LINENO}
 
-# SPARK_HOME=${SELFD}/spark-1.2.1-bin-hadoop2.4/bin
+SPARK_HOME=${SELFD}/spark-1.2.1-bin-hadoop2.4/bin
 LAUNCHER_CLASS=com.integration.weka.spark.utils.Launcher
 WEKA_JAR_PATH=${SELFD}/target
 # CLASSIFIER=weka.classifiers.trees.RandomForest

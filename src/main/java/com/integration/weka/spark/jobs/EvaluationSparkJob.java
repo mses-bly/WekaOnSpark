@@ -53,7 +53,14 @@ public class EvaluationSparkJob {
 		} else {
 			// perform cross validation
 			nFolds = Integer.valueOf(opts.getOption(Constants.OPTION_FOLDS));
-			evaluation = crossValidation(conf, context, opts.getOption(Constants.OPTION_CLASSIFIER_NAME), nFolds, opts.getOption(Constants.OPTION_INPUT_FILE));
+			JavaRDD<String> data = null;
+			if (opts.hasOption(Constants.OPTION_SHUFFLE)) {
+				data = RandomShuffleJob.randomlyShuffleData(conf, context, opts);
+			} else {
+				data = context.textFile(opts.getOption(Constants.OPTION_INPUT_FILE));
+			}
+			evaluation = crossValidation(conf, context, opts.getOption(Constants.OPTION_CLASSIFIER_NAME), nFolds, data);
+
 		}
 		if (evaluation != null) {
 			String outputFilePath = "evaluation_" + opts.getOption(Constants.OPTION_CLASSIFIER_NAME) + ".txt";
@@ -96,18 +103,15 @@ public class EvaluationSparkJob {
 		return aggregateableEvaluation;
 	}
 
-	private static Evaluation crossValidation(SparkConf conf, JavaSparkContext context, String classifierName, int kFolds, String trainDataInputFilePath) throws Exception {
-		// Load the data file
-		JavaRDD<String> csvFile = context.textFile(trainDataInputFilePath);
-
+	private static Evaluation crossValidation(SparkConf conf, JavaSparkContext context, String classifierName, int kFolds, JavaRDD<String> data) throws Exception {
 		// Group input data by partition rather than by lines
-		JavaRDD<List<String>> trainingData = csvFile.glom();
+		JavaRDD<List<String>> trainingData = data.glom();
 
 		// Build Weka Header
-		Instances header = trainingData.map(new CSVHeaderMapFunction(Utils.parseCSVLine(csvFile.first()).length)).reduce(new CSVHeaderReduceFunction());
+		Instances header = trainingData.map(new CSVHeaderMapFunction(Utils.parseCSVLine(data.first()).length)).reduce(new CSVHeaderReduceFunction());
 
 		// Train one classifier per fold
-		JavaPairRDD<Integer, Classifier> classifierPerFold = csvFile.mapPartitionsToPair(new ClassifierMapFunction(header, classifierName, kFolds));
+		JavaPairRDD<Integer, Classifier> classifierPerFold = data.mapPartitionsToPair(new ClassifierMapFunction(header, classifierName, kFolds));
 		classifierPerFold = classifierPerFold.sortByKey();
 		classifierPerFold = classifierPerFold.partitionBy(new IntegerPartitioner(kFolds));
 		JavaPairRDD<Integer, Classifier> reducedByFold = classifierPerFold.mapPartitionsToPair(new ClassifierReduceFunction());

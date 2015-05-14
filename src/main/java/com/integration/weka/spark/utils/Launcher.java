@@ -9,6 +9,7 @@ import org.apache.spark.api.java.JavaSparkContext;
 import com.integration.weka.spark.jobs.CSVHeaderSparkJob;
 import com.integration.weka.spark.jobs.ClassifierSparkJob;
 import com.integration.weka.spark.jobs.EvaluationSparkJob;
+import com.integration.weka.spark.jobs.RandomShuffleJob;
 import com.integration.weka.spark.jobs.ScoreSparkJob;
 
 /**
@@ -44,6 +45,9 @@ public class Launcher {
 					break;
 				case Constants.JOB_SCORE:
 					launchScoreJob(conf, context, Arrays.copyOfRange(args, 1, args.length));
+					break;
+				case Constants.JOB_SHUFFLE:
+					launchRandomShuffleJob(conf, context, Arrays.copyOfRange(args, 1, args.length));
 					break;
 			}
 		}
@@ -92,5 +96,16 @@ public class Launcher {
 			LOGGER.error("Could not complete EVALUATION job. Error: " + ex);
 		}
 		LOGGER.info("------- Finished evaluation job -------");
+	}
+
+	private static void launchRandomShuffleJob(SparkConf conf, JavaSparkContext context, String[] options) {
+		LOGGER.info("------- Launching shuffle job -------");
+		try {
+			Options opts = Utils.parseOptions(options);
+			RandomShuffleJob.randomlyShuffleData(conf, context, opts);
+		} catch (Exception ex) {
+			LOGGER.error("Could not complete SHUFFLE job. Error: " + ex);
+		}
+		LOGGER.info("------- Finished shuffle job -------");
 	}
 }

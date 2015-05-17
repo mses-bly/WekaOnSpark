@@ -6,14 +6,13 @@ SELFN=$(basename ${SELFD})
 SELFU=${SELF%.*}
 SELFZ=${SELFD}/${SELF}
 
-# [ -d spark-1.2.1-bin-hadoop2.4 ] || {
-# 	curl -sL http://d3kbcqa49mib13.cloudfront.net/spark-1.2.1-bin-hadoop2.4.tgz | tar vzx || exit ${LINENO}
-# }
+[ -d spark-1.2.1-bin-hadoop2.4 ] || {
+ 	curl -sL http://d3kbcqa49mib13.cloudfront.net/spark-1.2.1-bin-hadoop2.4.tgz | tar vzx || exit ${LINENO}
+}
 
-# [ -x spark-1.2.1-bin-hadoop2.4/bin ] || exit ${LINENO}
+[ -x spark-1.2.1-bin-hadoop2.4/bin ] || exit ${LINENO}
 
-# SPARK_HOME=${SELFD}/spark-1.2.1-bin-hadoop2.4/bin
-SPARK_HOME=/home/moises/Moises/Installs/spark-1.2.1-bin-hadoop2.4/bin
+SPARK_HOME=${SELFD}/spark-1.2.1-bin-hadoop2.4/bin
 LAUNCHER_CLASS=com.integration.weka.spark.utils.Launcher
 WEKA_JAR_PATH=${SELFD}/target
 # CLASSIFIER=weka.classifiers.trees.RandomForest

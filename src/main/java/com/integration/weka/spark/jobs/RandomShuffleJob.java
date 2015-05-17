@@ -18,7 +18,6 @@ import com.integration.weka.spark.utils.IntegerPartitioner;
 import com.integration.weka.spark.utils.Options;
 
 public class RandomShuffleJob {
-
 	public static JavaRDD<String> randomlyShuffleData(SparkConf conf, JavaSparkContext context, Options opts) throws Exception {
 		if (!opts.hasOption(Constants.OPTION_INPUT_FILE)) {
 			throw new Exception("Must provide data file for RANDOM SHUFFLE job");
@@ -52,10 +51,11 @@ public class RandomShuffleJob {
 				return data;
 			}
 		});
-
+		
 		if (opts.hasOption(Constants.OPTION_OUTPUT_FILE_NAME)) {
-			finalDataSet.saveAsTextFile(opts.getOption(Constants.OPTION_OUTPUT_FILE_NAME));
+			finalDataSet.saveAsObjectFile(opts.getOption(Constants.OPTION_OUTPUT_FILE_NAME));
 		}
+		
 		return finalDataSet;
 
 	}

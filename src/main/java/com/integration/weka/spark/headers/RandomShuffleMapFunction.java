@@ -23,7 +23,7 @@ public class RandomShuffleMapFunction implements PairFlatMapFunction<Iterator<St
 	public Iterable<Tuple2<Integer, String>> call(Iterator<String> t) throws Exception {
 		ArrayList<Tuple2<Integer, String>> randomlyAssignedInstances = new ArrayList<>();
 		while (t.hasNext()) {
-			int rnd = random.nextInt(numSlices + 1);
+			int rnd = random.nextInt(numSlices);
 			Tuple2<Integer, String> tupl = new Tuple2<Integer, String>(rnd, t.next());
 			randomlyAssignedInstances.add(tupl);
 		}

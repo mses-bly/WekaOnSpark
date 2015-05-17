@@ -31,6 +31,9 @@ public class Launcher {
 			//			List<String> classifiers = new ArrayList<String>();
 			//			classifiers.add("weka.classifiers.trees.RandomForest");
 			//			launchKFoldClassifierEvaluationJob(conf, context, classifiers, 10, trainDataInputFilePath);
+//			String[] input = { "-input-file", "/home/moises/Moises/Projects/WekaOnSpark/testing_files/diabetes.csv", "-folds", "10", "-shuffle", "true", "-classifier-name",
+			//					"weka.classifiers.trees.RandomForest" };
+			//			launchClassifierEvaluationJob(conf, context, input);
 		} else {
 			String job = args[0];
 			switch (job) {

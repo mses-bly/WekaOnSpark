@@ -5,14 +5,17 @@ SELF=$(basename ${0})
 SELFN=$(basename ${SELFD})
 SELFU=${SELF%.*}
 SELFZ=${SELFD}/${SELF}
+CONF=${SELFD}/conf
 
 [ -d spark-1.2.1-bin-hadoop2.4 ] || {
- 	curl -sL http://d3kbcqa49mib13.cloudfront.net/spark-1.2.1-bin-hadoop2.4.tgz | tar vzx || exit ${LINENO}
+	curl -sL http://d3kbcqa49mib13.cloudfront.net/spark-1.2.1-bin-hadoop2.4.tgz | tar vzx || exit ${LINENO}
 }
 
 [ -x spark-1.2.1-bin-hadoop2.4/bin ] || exit ${LINENO}
 
 SPARK_HOME=${SELFD}/spark-1.2.1-bin-hadoop2.4/bin
+SPARK_CONF=${SELFD}/spark-1.2.1-bin-hadoop2.4/conf
+
 LAUNCHER_CLASS=com.integration.weka.spark.utils.Launcher
 WEKA_JAR_PATH=${SELFD}/target
 # CLASSIFIER=weka.classifiers.trees.RandomForest
@@ -20,12 +23,13 @@ CLASSIFIER=weka.classifiers.bayes.NaiveBayes
 # CLASSIFIER=weka.classifiers.functions.LinearRegression
 # CLASSIFIER=weka.classifiers.functions.Logistic
 INPUT_FILES_PATH=${SELFD}/testing_files
-JOB=HEADER
+#JOB=HEADER
 # JOB=CLASSIFY
 # JOB=SCORE
-# JOB=EVALUATION
-# JOB=SHUFFLE
+JOB=EVALUATION
+#JOB=SHUFFLE
 
+cp ${CONF}/log4j.properties ${SPARK_CONF}
 
 mvn package
 
@@ -91,6 +95,6 @@ case ${JOB} in
 		${WEKA_JAR_PATH}/integration-weka-spark-0.0.1-SNAPSHOT.jar \
 		${JOB} \
 		-input-file ${INPUT_FILES_PATH}/diabetes.csv \
-		-output-file-name ${INPUT_FILES_PATH}/diabetes_random.csv\
+		-output-file-name ${INPUT_FILES_PATH}/test_diabetes\
 	;;
 esac

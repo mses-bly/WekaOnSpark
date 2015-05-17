@@ -55,7 +55,9 @@ public class EvaluationSparkJob {
 			nFolds = Integer.valueOf(opts.getOption(Constants.OPTION_FOLDS));
 			JavaRDD<String> data = null;
 			if (opts.hasOption(Constants.OPTION_SHUFFLE)) {
+				LOGGER.info("------- Launching shuffle job -------");
 				data = RandomShuffleJob.randomlyShuffleData(conf, context, opts);
+				LOGGER.info("------- Finished shuffle job -------");
 			} else {
 				data = context.textFile(opts.getOption(Constants.OPTION_INPUT_FILE));
 			}
@@ -106,10 +108,8 @@ public class EvaluationSparkJob {
 	private static Evaluation crossValidation(SparkConf conf, JavaSparkContext context, String classifierName, int kFolds, JavaRDD<String> data) throws Exception {
 		// Group input data by partition rather than by lines
 		JavaRDD<List<String>> trainingData = data.glom();
-
 		// Build Weka Header
 		Instances header = trainingData.map(new CSVHeaderMapFunction(Utils.parseCSVLine(data.first()).length)).reduce(new CSVHeaderReduceFunction());
-
 		// Train one classifier per fold
 		JavaPairRDD<Integer, Classifier> classifierPerFold = data.mapPartitionsToPair(new ClassifierMapFunction(header, classifierName, kFolds));
 		classifierPerFold = classifierPerFold.sortByKey();
@@ -120,7 +120,6 @@ public class EvaluationSparkJob {
 		for (Tuple2<Integer, Classifier> t : aggregated) {
 			kFoldClassifiers.add(t._1(), t._2());
 		}
-
 		List<Evaluation> evaluations = trainingData.map(new EvaluationMapFunction(header, kFoldClassifiers, kFolds)).collect();
 		AggregateableEvaluation aggregateableEvaluation = new AggregateableEvaluation(evaluations.get(0));
 		for (Evaluation eval : evaluations) {

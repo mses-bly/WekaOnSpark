@@ -28,7 +28,7 @@ public class CSVHeaderMapFunction implements FlatMapFunction<Iterator<String>, I
 	 *            Number of attributes for the header
 	 */
 	public CSVHeaderMapFunction(int numAttributes) {
-		
+		instances = new ArrayList<>();
 		attributes = new ArrayList<String>();
 		for (int i = 0; i < numAttributes - 1; i++) {
 			attributes.add("A" + i);

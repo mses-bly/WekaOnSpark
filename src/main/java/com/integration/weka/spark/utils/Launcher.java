@@ -23,6 +23,7 @@ public class Launcher {
 	private static Logger LOGGER = Logger.getLogger(Launcher.class);
 
 	public static void main(String[] args) {
+		System.out.println("*****************************************************************************************************************************************");
 		SparkConf conf = new SparkConf().setAppName("SparkWekaIntegration");
 		JavaSparkContext context = new JavaSparkContext(conf);
 		if (args.length == 0) {
@@ -60,7 +61,8 @@ public class Launcher {
 		LOGGER.info("------- Launching header construction job -------");
 		try {
 			Options opts = Utils.parseOptions(options);
-			CSVHeaderSparkJob.createARFFHeader(conf, context, opts);
+			CSVHeaderSparkJob csvHeaderSparkJob = new CSVHeaderSparkJob(context, opts);
+			csvHeaderSparkJob.computeHeaderAndWriteToFile();
 		} catch (Exception ex) {
 			LOGGER.error("Could not complete HEADER job. Error: " + ex);
 		}
@@ -72,7 +74,7 @@ public class Launcher {
 		LOGGER.info("------- Launching classifier training job -------");
 		try {
 			Options opts = Utils.parseOptions(options);
-			ClassifierSparkJob.buildClassifier(conf, context, opts);
+			ClassifierSparkJob.buildClassifier(context, opts);
 		} catch (Exception ex) {
 			LOGGER.error("Could not complete CLASSIFY job. Error: " + ex);
 		}
@@ -83,7 +85,7 @@ public class Launcher {
 		LOGGER.info("------- Launching score job -------");
 		try {
 			Options opts = Utils.parseOptions(options);
-			ScoreSparkJob.scoreDataSet(conf, context, opts);
+			ScoreSparkJob.scoreDataSet(context, opts);
 		} catch (Exception ex) {
 			LOGGER.error("Could not complete SCORE job. Error: " + ex);
 		}
@@ -94,7 +96,7 @@ public class Launcher {
 		LOGGER.info("------- Launching evaluation job -------");
 		try {
 			Options opts = Utils.parseOptions(options);
-			EvaluationSparkJob.evaluateClassifier(conf, context, opts);
+			EvaluationSparkJob.evaluateClassifier(context, opts);
 		} catch (Exception ex) {
 			LOGGER.error("Could not complete EVALUATION job. Error: " + ex);
 		}
@@ -105,7 +107,7 @@ public class Launcher {
 		LOGGER.info("------- Launching shuffle job -------");
 		try {
 			Options opts = Utils.parseOptions(options);
-			RandomShuffleJob.randomlyShuffleData(conf, context, opts);
+			RandomShuffleJob.randomlyShuffleData(context, opts);
 		} catch (Exception ex) {
 			LOGGER.error("Could not complete SHUFFLE job. Error: " + ex);
 		}

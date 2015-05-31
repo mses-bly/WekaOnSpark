@@ -2,8 +2,10 @@ package com.integration.weka.spark.headers;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
+import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.Function;
 
 import weka.core.Instances;
@@ -16,11 +18,9 @@ import weka.distributed.DistributedWekaException;
  * @author Moises
  *
  */
-public class CSVHeaderMapFunction implements Function<List<String>, Instances> {
-
-	private CSVToARFFHeaderMapTask csvToARFFHeaderMapTask;
+public class CSVHeaderMapFunction implements FlatMapFunction<Iterator<String>, Instances> {
+	private List<Instances> instances;
 	private List<String> attributes;
-
 	/**
 	 * Instantiate map function for building header
 	 * 
@@ -28,7 +28,7 @@ public class CSVHeaderMapFunction implements Function<List<String>, Instances> {
 	 *            Number of attributes for the header
 	 */
 	public CSVHeaderMapFunction(int numAttributes) {
-		csvToARFFHeaderMapTask = new CSVToARFFHeaderMapTask();
+		
 		attributes = new ArrayList<String>();
 		for (int i = 0; i < numAttributes - 1; i++) {
 			attributes.add("A" + i);
@@ -36,14 +36,16 @@ public class CSVHeaderMapFunction implements Function<List<String>, Instances> {
 		attributes.add("CLASS");
 	}
 
-	public Instances call(List<String> arg0) throws DistributedWekaException, IOException {
-		for (String str : arg0) {
-			csvToARFFHeaderMapTask.processRow(str, attributes);
+	@Override
+	public Iterable<Instances> call(Iterator<String> arg0) throws Exception {
+		CSVToARFFHeaderMapTask csvToARFFHeaderMapTask = new CSVToARFFHeaderMapTask();
+		while (arg0.hasNext()){
+			csvToARFFHeaderMapTask.processRow(arg0.next(), attributes);
 		}
-		Instances headerInstance = csvToARFFHeaderMapTask.getHeader();
-		headerInstance.setClassIndex(attributes.size() - 1);
-		headerInstance.setRelationName("RELATION");
-		return headerInstance;
+		Instances innerHeader = csvToARFFHeaderMapTask.getHeader();
+		innerHeader.setClassIndex(attributes.size() - 1);
+		innerHeader.setRelationName("RELATION");
+		instances.add(innerHeader);
+		return instances;
 	}
-
 }

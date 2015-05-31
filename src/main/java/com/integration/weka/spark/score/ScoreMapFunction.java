@@ -14,7 +14,7 @@ import cern.colt.Arrays;
 
 import com.integration.weka.spark.utils.Utils;
 
-public class ScoreMapFunction implements Function<List<Instance>, List<String>> {
+public class ScoreMapFunction implements Function<Instance, String> {
 
 	private WekaScoringMapTask wekaScoringMapTask;
 	private Attribute classAttribute;
@@ -25,18 +25,15 @@ public class ScoreMapFunction implements Function<List<Instance>, List<String>> 
 		classAttribute = modelHeader.classAttribute();
 	}
 
-	public List<String> call(List<Instance> v1) throws Exception {
-		ArrayList<String> predictions = new ArrayList<String>();
-		for (Instance instance : v1) {
-			String instancePrediction = "[" + instance.toString() + "] -> Prediction: ";
-			double[] preds = wekaScoringMapTask.processInstance(instance);
-			if (!classAttribute.isNominal()) {
-				instancePrediction += "[" + Arrays.toString(preds) + "]";
-			} else {
-				instancePrediction += "[" + Arrays.toString(preds) + "] - " + classAttribute.value(Utils.getBiggestElementIndex(preds));
-			}
-			predictions.add(instancePrediction);
+	public String call(Instance v1) throws Exception {
+		String instancePrediction = "[" + v1.toString() + "] -> Prediction: ";
+		double[] preds = wekaScoringMapTask.processInstance(v1);
+		if (!classAttribute.isNominal()) {
+			instancePrediction += "[" + Arrays.toString(preds) + "]";
+		} else {
+			instancePrediction += "[" + Arrays.toString(preds) + "] - "
+					+ classAttribute.value(Utils.getBiggestElementIndex(preds));
 		}
-		return predictions;
+		return instancePrediction;
 	}
 }

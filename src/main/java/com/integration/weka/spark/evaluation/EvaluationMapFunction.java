@@ -1,8 +1,10 @@
 package com.integration.weka.spark.evaluation;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
+import org.apache.spark.api.java.function.FlatMapFunction;
 import org.apache.spark.api.java.function.Function;
 
 import weka.classifiers.Classifier;
@@ -16,15 +18,17 @@ import weka.distributed.CSVToARFFHeaderMapTask;
 import weka.distributed.CSVToARFFHeaderReduceTask;
 import weka.distributed.WekaClassifierEvaluationMapTask;
 
-public class EvaluationMapFunction implements Function<List<String>, Evaluation> {
+public class EvaluationMapFunction implements FlatMapFunction<Iterator<Instance>, Evaluation> {
 
 	private ArrayList<WekaClassifierEvaluationMapTask> evaluationMapTasks;
+	private ArrayList<Evaluation> evaluations;
 	private Instances strippedHeader;
 	private Attribute classSummaryAttribute;
 	private Attribute classAttribute;
 	private int kFolds;
 
 	public EvaluationMapFunction(Instances dataHeader, List<Classifier> classifiers, int kFolds) throws Exception {
+		evaluations = new ArrayList<>();
 		strippedHeader = CSVToARFFHeaderReduceTask.stripSummaryAtts(dataHeader);
 		classSummaryAttribute = dataHeader.attribute(CSVToARFFHeaderMapTask.ARFF_SUMMARY_ATTRIBUTE_PREFIX + dataHeader.classAttribute().name());
 		classAttribute = dataHeader.classAttribute();
@@ -85,13 +89,11 @@ public class EvaluationMapFunction implements Function<List<String>, Evaluation>
 		return ArffSummaryNumericMetric.COUNT.valueFromAttribute(classSummaryAttribute);
 	}
 
-	public Evaluation call(List<String> v1) throws Exception {
-		CSVToARFFHeaderMapTask rowParser = new CSVToARFFHeaderMapTask();
-		rowParser.initParserOnly(CSVToARFFHeaderMapTask.instanceHeaderToAttributeNameList(strippedHeader));
-		for (int i = 0; i < v1.size(); i++) {
+	@Override
+	public Iterable<Evaluation> call(Iterator<Instance> arg0) throws Exception {
+		while (arg0.hasNext()){
+			Instance currentInstance = arg0.next();
 			for (int j = 0; j < kFolds; j++) {
-				String[] parsedRow = rowParser.parseRowOnly(v1.get(i));
-				Instance currentInstance = rowParser.makeInstance(strippedHeader, true, parsedRow);
 				evaluationMapTasks.get(j).processInstance(currentInstance);
 			}
 		}
@@ -105,7 +107,8 @@ public class EvaluationMapFunction implements Function<List<String>, Evaluation>
 			}
 			aggregateableEvaluation.aggregate(iFoldEvaluation);
 		}
-		return aggregateableEvaluation;
+		evaluations.add(aggregateableEvaluation);
+		return evaluations;
 	}
 
 }

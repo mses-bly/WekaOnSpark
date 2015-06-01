@@ -55,15 +55,14 @@ public class EvaluationSparkJob {
 		} else {
 			// perform cross validation
 			nFolds = Integer.valueOf(opts.getOption(Constants.OPTION_FOLDS));
-			JavaRDD<String> data = null;
+			Dataset data = null;
 			if (opts.hasOption(Constants.OPTION_SHUFFLE)) {
-				LOGGER.info("------- Launching shuffle job -------");
-				data = RandomShuffleJob.randomlyShuffleData(context, opts);
-				LOGGER.info("------- Finished shuffle job -------");
+//				LOGGER.info("------- Launching shuffle job -------");
+//				data = RandomShuffleJob.randomlyShuffleData(context, opts);
+//				LOGGER.info("------- Finished shuffle job -------");
 			} else {
-				data = context.textFile(opts.getOption(Constants.OPTION_INPUT_FILE));
+				data = new CSVHeaderSparkJob(context, opts).createDataSet(false);
 			}
-			data.persist(StorageLevel.MEMORY_AND_DISK());
 			evaluation = crossValidation(context, opts.getOption(Constants.OPTION_CLASSIFIER_NAME), nFolds, data);
 
 		}
@@ -71,7 +70,6 @@ public class EvaluationSparkJob {
 			String outputFilePath = "evaluation_" + opts.getOption(Constants.OPTION_CLASSIFIER_NAME) + ".txt";
 			PrintWriter writer = new PrintWriter(outputFilePath, "UTF-8");
 			writer.println("======== Evaluation for classifier: " + opts.getOption(Constants.OPTION_CLASSIFIER_NAME) + " ========");
-
 			writer.println("======== Number of folds:" + nFolds + " ========");
 			writer.println(evaluation.toSummaryString(true));
 			writer.close();
@@ -102,30 +100,30 @@ public class EvaluationSparkJob {
 		return aggregateableEvaluation;
 	}
 
-	private static Evaluation crossValidation(JavaSparkContext context, String classifierName, int kFolds, JavaRDD<String> data) throws Exception {
-//		// Group input data by partition rather than by lines
-//		JavaRDD<List<String>> trainingData = data.glom();
-//		// Build Weka Header
-//		Instances header = trainingData.map(new CSVHeaderMapFunction(Utils.parseCSVLine(data.first()).length)).reduce(new CSVHeaderReduceFunction());
-//		// Train one classifier per fold
-//		JavaPairRDD<Integer, Classifier> classifierPerFold = data.mapPartitionsToPair(new ClassifierMapFunction(header, classifierName, kFolds));
-//		classifierPerFold.persist(StorageLevel.MEMORY_AND_DISK());
-//		data.unpersist();
-//		classifierPerFold = classifierPerFold.sortByKey();
-//		classifierPerFold = classifierPerFold.partitionBy(new IntegerPartitioner(kFolds));
-//		classifierPerFold.persist(StorageLevel.MEMORY_AND_DISK());
-//		JavaPairRDD<Integer, Classifier> reducedByFold = classifierPerFold.mapPartitionsToPair(new ClassifierReduceFunction());
-//		List<Classifier> kFoldClassifiers = new ArrayList<Classifier>(kFolds);
-//		List<Tuple2<Integer, Classifier>> aggregated = reducedByFold.collect();
-//		for (Tuple2<Integer, Classifier> t : aggregated) {
-//			kFoldClassifiers.add(t._1(), t._2());
-//		}
-//		List<Evaluation> evaluations = trainingData.map(new EvaluationMapFunction(header, kFoldClassifiers, kFolds)).collect();
-//		AggregateableEvaluation aggregateableEvaluation = new AggregateableEvaluation(evaluations.get(0));
-//		for (Evaluation eval : evaluations) {
-//			aggregateableEvaluation.aggregate(eval);
-//		}
-//		return aggregateableEvaluation;
-		return null;
+	private static Evaluation crossValidation(JavaSparkContext context, String classifierName, int kFolds, Dataset data) throws Exception {
+		JavaPairRDD<Integer, Classifier> classifierPerFold = data.getData().mapPartitionsToPair(new ClassifierMapFunction(data.getHeaderNoSummary(), classifierName, kFolds));
+		classifierPerFold.persist(StorageLevel.MEMORY_AND_DISK());
+		classifierPerFold = classifierPerFold.sortByKey();
+		
+		JavaPairRDD<Integer, Classifier> groupedByPartition = classifierPerFold.partitionBy(new IntegerPartitioner(kFolds));
+		groupedByPartition.persist(StorageLevel.MEMORY_AND_DISK());
+		
+		JavaPairRDD<Integer, Classifier> reducedByFold = groupedByPartition.mapPartitionsToPair(new ClassifierReduceFunction());
+		List<Classifier> kFoldClassifiers = new ArrayList<Classifier>(kFolds);
+		List<Tuple2<Integer, Classifier>> aggregated = reducedByFold.collect();
+		
+		for (Tuple2<Integer, Classifier> t : aggregated) {
+			kFoldClassifiers.add(t._1(), t._2());
+		}
+		
+		List<Evaluation> evaluations = data.getData().mapPartitions(new EvaluationMapFunction(data.getHeaderWithSummary(), kFoldClassifiers, kFolds)).collect();
+		AggregateableEvaluation aggregateableEvaluation = new AggregateableEvaluation(evaluations.get(0));
+		for (Evaluation eval : evaluations) {
+			aggregateableEvaluation.aggregate(eval);
+		}
+		
+		classifierPerFold.unpersist();
+		groupedByPartition.unpersist();
+		return aggregateableEvaluation;
 	}
 }

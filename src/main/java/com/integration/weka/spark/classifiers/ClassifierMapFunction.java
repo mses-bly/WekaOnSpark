@@ -25,7 +25,6 @@ public class ClassifierMapFunction implements PairFlatMapFunction<Iterator<Insta
 		classifierMapTasks = new ArrayList<WekaClassifierMapTask>();
 		this.kFolds = kFolds;
 		for (int i = 0; i < kFolds; i++) {
-			System.out.println("*********************************************µµµµµµ*******");
 			WekaClassifierMapTask foldTask = new WekaClassifierMapTask();
 			foldTask.setClassifier((Classifier) object);
 			foldTask.setTotalNumFolds(kFolds);
@@ -38,8 +37,9 @@ public class ClassifierMapFunction implements PairFlatMapFunction<Iterator<Insta
 	public Iterable<Tuple2<Integer, Classifier>> call(Iterator<Instance> t) throws Exception {
 		List<Tuple2<Integer, Classifier>> classifiers = new ArrayList<Tuple2<Integer, Classifier>>();
 		while (t.hasNext()) {
+			Instance currentInstance = t.next();
 			for (int j = 0; j < kFolds; j++) {
-				classifierMapTasks.get(j).processInstance(t.next());
+				classifierMapTasks.get(j).processInstance(currentInstance);
 			}
 		}
 		for (int i = 0; i < kFolds; i++) {

@@ -25,6 +25,7 @@ public class ClassifierMapFunction implements PairFlatMapFunction<Iterator<Insta
 		classifierMapTasks = new ArrayList<WekaClassifierMapTask>();
 		this.kFolds = kFolds;
 		for (int i = 0; i < kFolds; i++) {
+			System.out.println("*********************************************µµµµµµ*******");
 			WekaClassifierMapTask foldTask = new WekaClassifierMapTask();
 			foldTask.setClassifier((Classifier) object);
 			foldTask.setTotalNumFolds(kFolds);

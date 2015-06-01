@@ -83,9 +83,7 @@ public class EvaluationSparkJob {
 		
 		Dataset trainingData = new CSVHeaderSparkJob(context, trainDataInputFilePath).createDataSet(false);
 		// Train one classifier per fold
-		JavaPairRDD<Integer, Classifier> classifierPerFold = trainingData.getData().mapPartitionsToPair(new ClassifierMapFunction(trainingData.getHeaderWithSummary(), classifierName, 1));
-		classifierPerFold = classifierPerFold.sortByKey();
-		classifierPerFold = classifierPerFold.partitionBy(new IntegerPartitioner(1));
+		JavaPairRDD<Integer, Classifier> classifierPerFold = trainingData.getData().mapPartitionsToPair(new ClassifierMapFunction(trainingData.getHeaderNoSummary(), classifierName, 1));
 		JavaPairRDD<Integer, Classifier> reducedByFold = classifierPerFold.mapPartitionsToPair(new ClassifierReduceFunction());
 		List<Classifier> kFoldClassifiers = new ArrayList<Classifier>(1);
 		List<Tuple2<Integer, Classifier>> aggregated = reducedByFold.collect();

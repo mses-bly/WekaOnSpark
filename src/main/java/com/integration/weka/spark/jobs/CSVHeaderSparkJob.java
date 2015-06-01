@@ -72,7 +72,8 @@ public class CSVHeaderSparkJob {
 	public Instances createHeader() throws IOException{
 		JavaRDD<String> csvFile = context.textFile(this.inputFile);
 		
-		JavaRDD<Instances> instances = csvFile.mapPartitions(new CSVHeaderMapFunction(Utils.parseCSVLine(csvFile.first()).length));
+		int numAttributes = Utils.parseCSVLine(csvFile.first()).length;
+		JavaRDD<Instances> instances = csvFile.mapPartitions(new CSVHeaderMapFunction(numAttributes));
 		Instances header = instances.reduce(new CSVHeaderReduceFunction());
 		
 		return header;
